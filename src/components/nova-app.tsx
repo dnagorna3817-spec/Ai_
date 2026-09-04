@@ -84,7 +84,13 @@ function TeamCell({ worker }: { worker: typeof workers[number] }) {
 }
 
 function CollaborationChain() {
-  return <div className="chain">{workers.filter(w => ["accountant", "documents", "client"].includes(w.key)).map((w, i) => <div key={w.key}><Identity color={w.color} size="sm" /><span>{w.name}</span>{i < 2 && <ArrowRight size={15} />}</div>)}<div className="you-node"><span>YOU</span></div></div>;
+  const collaborators = workers.filter(w => ["accountant", "documents", "client"].includes(w.key));
+  return <div className="chain">
+    <div className="chain-node chain-node-1"><Identity color={collaborators[0].color} size="sm" /><span>{collaborators[0].name}</span></div><ArrowRight className="chain-arrow chain-arrow-1" size={14} />
+    <div className="chain-node chain-node-2"><Identity color={collaborators[1].color} size="sm" /><span>{collaborators[1].name}</span></div><ArrowRight className="chain-arrow chain-arrow-2" size={14} />
+    <div className="chain-node chain-node-3"><Identity color={collaborators[2].color} size="sm" /><span>{collaborators[2].name}</span></div><ArrowRight className="chain-arrow chain-arrow-3" size={14} />
+    <div className="you-node"><span>YOU</span></div>
+  </div>;
 }
 
 function Dashboard() {
@@ -113,7 +119,7 @@ function Dashboard() {
   return <Shell path="/office"><div className="page office-page">
     <header className="page-head office-head"><div><p className="eyebrow">THURSDAY, SEPTEMBER 4</p><h1>Good morning, Diana.</h1><p>Your AI team is working.</p></div><div className="summary"><span><b>3</b> agents working</span><i /><span><b>12</b> active tasks</span><i /><span><b>{approved ? 0 : 1}</b> decision{approved ? "s" : ""} waiting for you</span></div></header>
     <section className="team-focus"><div className="office-section-head"><div><p className="eyebrow">YOUR AI TEAM</p><h2>Your digital workforce, right now.</h2></div><button className="text-button" onClick={() => router.push("/workforce")}>View workforce <ArrowRight size={15} /></button></div><div className="team-composition">{officeWorkers.map(w => <TeamCell key={w.key} worker={w} />)}</div></section>
-    {!approved && <motion.section className="attention office-attention" layout><div className="attention-top"><span className="attention-label"><i /> HUMAN DECISION</span></div><div className="attention-grid"><div className="attention-copy"><h2>Your AI team needs one decision.</h2><p>Client Communication prepared a request for 3 missing invoices.</p></div><CollaborationChain /><div className="decision"><small>PROPOSED ACTION</small><h3>Send document request to Miloš K.?</h3><div><button className="secondary" onClick={() => router.push("/approvals/monthly-close")}>Review request</button><button className="primary" onClick={() => router.push("/approvals/monthly-close")}>Approve</button></div></div></div></motion.section>}
+    {!approved && <motion.section className="attention office-attention" layout><div className="attention-grid"><div className="attention-left"><div className="attention-top"><span className="attention-label"><i /> HUMAN DECISION</span></div><div className="attention-copy"><h2>Your AI team needs one decision.</h2><p>Client Communication prepared a request for 3 missing invoices.</p></div><CollaborationChain /></div><div className="decision"><small>PROPOSED ACTION</small><h3>Send document request to Miloš K.?</h3><div><button className="secondary" onClick={() => router.push("/approvals/monthly-close")}>Review request</button><button className="primary" onClick={() => router.push("/approvals/monthly-close")}>Approve</button></div></div></div></motion.section>}
     {approved && <motion.section className="continuation" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}><CheckCircle2 size={19} /><div><b>Decision approved. Work has continued.</b><span>Client Communication sent the request at 10:04.</span></div></motion.section>}
     <section className="section activity-section office-activity"><div className="section-title"><div><p className="eyebrow">WHAT YOUR AI TEAM DID TODAY</p><h2>Work moved forward autonomously.</h2></div><button className="task-link" onClick={() => router.push("/tasks/monthly-close")}>Prepare client for monthly close <ArrowRight size={15} /></button></div><div className="timeline">{activities.map((a, i) => <motion.div className={`activity-${a.kind.toLowerCase().replace(" ", "-")}`} key={`${a.time}-${a.actor}`} initial={{ opacity: 0, x: -7 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * .04 }}><time>{a.time}</time><i /><div><span className="activity-kind">{a.kind}</span><b>{a.actor}</b><p>{a.text}</p></div></motion.div>)}</div></section>
   </div></Shell>;
