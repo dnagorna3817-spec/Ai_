@@ -19,6 +19,12 @@
 
 # production
 /build
+/output/
+
+# local cache and temporary files
+/.cache/
+*.tmp
+*.temp
 
 # misc
 .DS_Store
