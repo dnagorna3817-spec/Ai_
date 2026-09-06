@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useWorkforce } from "./workforce-state";
+import { type AutonomyLevel, useWorkforce } from "./workforce-state";
 
 const workers = [
   { key: "accountant", name: "AI-бухгалтер", role: "Фінанси та бухгалтерія", color: "blue", status: "ПРАЦЮЄ", objective: "Підготувати закриття серпня", progress: 68, action: "Проаналізовано 48 транзакцій", tasks: 7 },
@@ -22,6 +22,31 @@ const nav = [
   ["/documents", "Документи", Files], ["/approvals/monthly-close", "Погодження", CheckCircle2], ["/activity", "Активність", Activity],
   ["/analytics", "Аналітика", BarChart3], ["/settings", "Налаштування", Settings2],
 ] as const;
+
+const responsibilityOptions = [
+  "Звіряти банківські транзакції",
+  "Контролювати рахунки та платежі",
+  "Готувати закриття місяця",
+  "Шукати фінансові невідповідності",
+  "Готувати фінансові звіти",
+  "Контролювати прострочені оплати клієнтів",
+  "Перевіряти наявність необхідних документів",
+];
+
+const approvalOptions = [
+  "Проведення або ініціювання платежів",
+  "Податкові дії",
+  "Незвичні або підозрілі транзакції",
+  "Надсилання документів клієнтам",
+  "Зміни фінансових даних",
+  "Операції понад встановлений ліміт",
+];
+
+const autonomyLabels: Record<AutonomyLevel, string> = {
+  assistant: "Асистент",
+  controlled: "Контрольований",
+  autonomous: "Автономний",
+};
 
 function Identity({ color = "blue", size = "md" }: { color?: string; size?: "sm" | "md" | "lg" }) {
   return <div className={`identity identity-${color} identity-${size}`} aria-hidden="true"><i /><i /><i /></div>;
@@ -95,7 +120,7 @@ function CollaborationChain() {
 
 function Dashboard() {
   const router = useRouter();
-  const { approved } = useWorkforce();
+  const { approved, createdEmployee } = useWorkforce();
   const officeWorkers = [
     { ...workers[0], status: "ПРАЦЮЄ", objective: "Готує закриття серпня", action: "Проаналізовано 48 транзакцій" },
     { ...workers[1], status: "ПЕРЕВІРЯЄ", objective: "Податкові зобов’язання за вересень", progress: 81, action: "Виявлено 2 найближчі строки" },
@@ -114,6 +139,9 @@ function Dashboard() {
     ...(approved ? [
       { time: "10:04", actor: "Користувач", text: "Погодив запит клієнту.", kind: "HUMAN ACTION" },
       { time: "10:04", actor: "Клієнтська комунікація", text: "Надіслала запит документів Мілошу К.", kind: "AI ACTION" },
+    ] : []),
+    ...(createdEmployee ? [
+      { time: createdEmployee.createdAt, actor: createdEmployee.name, text: "Приєднався до команди й готовий до роботи.", kind: "AI ACTION" },
     ] : []),
   ];
   const activityKindLabels = { "AI ACTION": "ДІЯ AI", HANDOFF: "ПЕРЕДАЧА", "HUMAN ACTION": "ДІЯ ЛЮДИНИ" } as const;
@@ -147,11 +175,111 @@ function Approval() {
   return <Shell path="/approvals/monthly-close"><div className="page approval-page"><button className="back" onClick={() => router.push("/tasks/monthly-close")}><ArrowLeft size={16} /> Назад до завдання</button><header><p className="eyebrow">ЗВИЧАЙНА ЧАСТИНА РОБОЧОГО ПРОЦЕСУ</p><h1>Потрібне<br />ваше рішення.</h1><p>Ваша AI-команда зупинилася перед зовнішньою дією.</p></header><div className="approval-layout"><section className="proposal"><div className="proposal-by"><Identity color="green" /><div><small>ЗАПРОПОНОВАНО</small><b>Клієнтська комунікація</b></div><Status tone="waiting">ОЧІКУЄ ВАШОГО РІШЕННЯ</Status></div><div className="proposal-title"><small>ЗАПРОПОНОВАНА ДІЯ</small><h2>Надіслати запит документів Мілошу К.</h2></div>{editing ? <textarea value={message} onChange={e => setMessage(e.target.value)} autoFocus /> : <div className="message-preview">{message.split("\n").map((line, i) => <p key={i}>{line || <br />}</p>)}</div>}<div className="approval-actions"><button className="primary approve" onClick={submit}><Check size={17} /> Погодити та надіслати</button><button className="secondary" onClick={() => setEditing(!editing)}>{editing ? "Зберегти зміни" : "Редагувати"}</button><button className="ghost"><X size={16} /> Відхилити</button></div></section><aside className="decision-context"><div><span>ЧОМУ</span><p>Для закриття серпня бракує 3 рахунків.</p></div><div><span>ВИКОРИСТАНІ ДАНІ</span><p>Перевірка обліку за серпень<br />Перевірка документів</p></div><div><span>ЩО БУДЕ ДАЛІ</span><p>Після погодження запит буде надіслано. Коли документи надійдуть, AI-бухгалтер продовжить закриття місяця.</p></div><div className="guardrail"><ShieldCheck size={18} /><p><b>Ви зберігаєте контроль.</b><br />Зовнішні повідомлення не надсилаються без визначеного вами дозволу.</p></div></aside></div></div></Shell>;
 }
 
-function Workforce() { const router = useRouter(); return <Shell path="/workforce"><div className="page workforce-page"><header className="page-head"><div><p className="eyebrow">ЦИФРОВА КОМАНДА</p><h1>Ваша AI-команда</h1><p>Ваша цифрова команда працює в усіх напрямах бізнесу.</p></div><button className="primary" onClick={() => router.push("/workforce/new")}><Plus size={17} /> Додати AI-працівника</button></header><section className="workforce-grid">{workers.map(w => <article key={w.key}><div className="worker-card-top"><Identity color={w.color} size="lg" /><Status tone={w.status.includes("ОЧІКУЄ") ? "waiting" : "live"}>{w.status}</Status></div><h2>{w.name}</h2><p className="role">{w.role}</p><div className="objective"><span>ПОТОЧНА ЦІЛЬ</span><b>{w.objective}</b><div className="progress"><i style={{ width: `${w.progress}%` }} /></div><small>{w.progress}% виконано</small></div><div className="worker-facts"><span><b>{w.tasks}</b> завдань виконано сьогодні</span><span>Останнє · {w.action}</span></div><button className="text-button" onClick={() => router.push(`/workforce/${w.key}`)}>Відкрити робочий простір <ArrowRight size={15} /></button></article>)}</section></div></Shell>; }
+function Workforce() {
+  const router = useRouter();
+  const { createdEmployee } = useWorkforce();
 
-function Workspace({ employee = "accountant" }: { employee?: string }) { const router = useRouter(); const w = workers.find(x => x.key === employee) || workers[0]; const [open, setOpen] = useState("work"); return <Shell path="/workforce"><div className="page workspace-page"><button className="back" onClick={() => router.push("/workforce")}><ArrowLeft size={16} /> AI-команда</button><header className="workspace-hero"><Identity color={w.color} size="lg" /><div><p className="eyebrow">РОБОЧИЙ ПРОСТІР AI-ПРАЦІВНИКА</p><h1>{w.name}</h1><p>{w.role}</p></div><Status>ПРАЦЮЄ</Status><div className="workspace-objective"><span>ПОТОЧНА ЦІЛЬ</span><h2>{w.objective}</h2><div className="progress"><i style={{ width: `${w.progress}%` }} /></div><b>{w.progress}%</b><p><i /> Зараз: очікує на перевірку документів.</p></div></header><section className="workspace-sections"><button className={open === "work" ? "open" : ""} onClick={() => setOpen("work")}><span><CircleGauge size={18} /> ПОТОЧНА РОБОТА</span><ChevronDown size={17} /></button>{open === "work" && <motion.div className="disclosure" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}><div><small>АКТИВНЕ ЗАВДАННЯ</small><b>Підготувати клієнта до закриття місяця</b><p>Фахівець із документів перевіряє первинні матеріали.</p></div><button className="secondary" onClick={() => router.push("/tasks/monthly-close")}>Відкрити завдання</button></motion.div>}{[["queue", ListChecks, "ЧЕРГА ЗАВДАНЬ"], ["activity", Activity, "ОСТАННЯ АКТИВНІСТЬ"], ["knowledge", FileCheck2, "ЗНАННЯ"], ["permissions", LockKeyhole, "ДОЗВОЛИ"], ["systems", Settings2, "ПІДКЛЮЧЕНІ СИСТЕМИ"]].map(([key, Icon, label]) => <button key={key as string} onClick={() => setOpen(open === key ? "" : key as string)}><span>{<Icon size={18} />} {label as string}</span><ChevronDown size={17} /></button>)}</section></div></Shell>; }
+  return <Shell path="/workforce"><div className="page workforce-page">
+    <header className="page-head"><div><p className="eyebrow">ЦИФРОВА КОМАНДА</p><h1>Ваша AI-команда</h1><p>Ваша цифрова команда працює в усіх напрямах бізнесу.</p></div><button className="primary" onClick={() => router.push("/workforce/new")}><Plus size={17} /> Найняти AI-працівника</button></header>
+    <section className="workforce-grid">
+      {workers.map(w => <article key={w.key}><div className="worker-card-top"><Identity color={w.color} size="lg" /><Status tone={w.status.includes("ОЧІКУЄ") ? "waiting" : "live"}>{w.status}</Status></div><h2>{w.name}</h2><p className="role">{w.role}</p><div className="objective"><span>ПОТОЧНА ЦІЛЬ</span><b>{w.objective}</b><div className="progress"><i style={{ width: `${w.progress}%` }} /></div><small>{w.progress}% виконано</small></div><div className="worker-facts"><span><b>{w.tasks}</b> завдань виконано сьогодні</span><span>Останнє · {w.action}</span></div><button className="text-button" onClick={() => router.push(`/workforce/${w.key}`)}>Відкрити робочий простір <ArrowRight size={15} /></button></article>)}
+      {createdEmployee && <motion.article className="created-worker-card" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}><div className="worker-card-top"><Identity color="blue" size="lg" /><Status>АКТИВНИЙ</Status></div><h2>{createdEmployee.name}</h2><p className="role">{createdEmployee.role}</p><div className="objective"><span>РІВЕНЬ АВТОНОМНОСТІ</span><b>{autonomyLabels[createdEmployee.autonomy]}</b><div className="progress"><i style={{ width: "100%" }} /></div><small>Готовий до роботи</small></div><div className="worker-facts"><span><b>0</b> активних завдань</span><span>Останнє · Приєднався до команди о {createdEmployee.createdAt}</span></div><button className="text-button" onClick={() => router.push("/workforce/accountant")}>Відкрити робочий простір <ArrowRight size={15} /></button></motion.article>}
+    </section>
+  </div></Shell>;
+}
 
-function CreateEmployee() { const router = useRouter(); const [autonomy, setAutonomy] = useState("approval"); return <Shell path="/workforce"><div className="page create-page"><button className="back" onClick={() => router.push("/workforce")}><ArrowLeft size={16} /> AI-команда</button><header><p className="eyebrow">РОЗШИРТЕ КОМАНДУ</p><h1>Додайте AI-працівника<br />до своєї команди</h1><p>Налаштуйте роль, робочий контекст і чіткі межі відповідальності.</p></header><form onSubmit={e => { e.preventDefault(); router.push("/workforce"); }}><section><h2>Роль і призначення</h2><div className="field-grid"><label><span>Ім’я AI-працівника</span><input placeholder="Наприклад, фахівець із розрахунку зарплат" /></label><label><span>Роль</span><input placeholder="Наприклад, розрахунок заробітної плати" /></label><label className="wide"><span>Основна ціль</span><input placeholder="Який результат має забезпечувати цей працівник?" /></label><label className="wide"><span>Обов’язки</span><textarea placeholder="Опишіть роботу, за яку відповідатиме цей працівник..." /></label></div></section><section><h2>Робочий контекст</h2><div className="field-grid"><label><span>Джерела знань</span><input placeholder="Політики, інструкції та довідкові документи" /></label><label><span>Підключені системи</span><input placeholder="Виберіть бізнес-системи" /></label><label className="wide"><span>Дозволи</span><input placeholder="Визначте, що цей працівник може переглядати й змінювати" /></label></div></section><section><h2>Автономність</h2><p className="section-note">Виберіть, наскільки самостійно може працювати цей AI-працівник.</p><div className="autonomy-options">{[["suggest", "Лише пропонувати", "Готує результат для вашого перегляду"], ["approval", "Працювати з погодженням", "Діє після погодження ключових рішень"], ["lowrisk", "Автономно для дій із низьким ризиком", "Самостійно виконує рутинну роботу"]].map(a => <button type="button" className={autonomy === a[0] ? "selected" : ""} key={a[0]} onClick={() => setAutonomy(a[0])}><i>{autonomy === a[0] && <Check size={12} />}</i><b>{a[1]}</b><span>{a[2]}</span></button>)}</div><div className="always-approve"><div><ShieldCheck size={20} /><span><b>ЗАВЖДИ ПОТРІБНЕ МОЄ ПОГОДЖЕННЯ</b><small>Ці дії залишаються під контролем людини.</small></span></div><ul><li>Надсилання зовнішніх повідомлень</li><li>Фінансові операції</li><li>Подання офіційних документів</li><li>Зміна бізнес-даних</li></ul></div></section><button className="primary form-submit">Додати AI-працівника <ArrowRight size={16} /></button></form></div></Shell>; }
+function Workspace({ employee = "accountant" }: { employee?: string }) {
+  const router = useRouter();
+  const { createdEmployee } = useWorkforce();
+  const w = workers.find(x => x.key === employee) || workers[0];
+  const hiredEmployee = employee === "accountant" ? createdEmployee : null;
+  const [open, setOpen] = useState("work");
+  const detailSections = [["queue", ListChecks, "ЧЕРГА ЗАВДАНЬ"], ["activity", Activity, "ОСТАННЯ АКТИВНІСТЬ"], ["knowledge", FileCheck2, "ЗНАННЯ"], ["permissions", LockKeyhole, "ДОЗВОЛИ"], ["systems", Settings2, "ПІДКЛЮЧЕНІ СИСТЕМИ"]] as const;
+
+  const hiredDetails = (key: string) => {
+    if (!hiredEmployee) return null;
+    if (key === "queue") return <div className="workspace-detail"><small>ПРИЗНАЧЕНІ ОБОВ’ЯЗКИ</small><ul>{hiredEmployee.responsibilities.map(item => <li key={item}>{item}</li>)}</ul></div>;
+    if (key === "activity") return <div className="workspace-detail"><small>ОСТАННЯ ПОДІЯ</small><b>AI-бухгалтер приєднався до команди</b><p>Сьогодні о {hiredEmployee.createdAt}</p></div>;
+    if (key === "permissions") return <div className="workspace-detail"><small>ПРАВИЛА ПОГОДЖЕННЯ</small><ul>{hiredEmployee.approvalRules.map(item => <li key={item}>{item}</li>)}</ul><p>Ліміт без погодження: <b>{hiredEmployee.approvalLimit}</b></p></div>;
+    if (key === "knowledge") return <div className="workspace-detail"><small>ДЖЕРЕЛА ЗНАНЬ</small><b>Базовий фінансовий контекст</b><p>Демо-джерела готові до підключення.</p></div>;
+    return <div className="workspace-detail"><small>ПІДКЛЮЧЕННЯ</small><b>Системи ще не підключені</b><p>Їх можна додати пізніше в налаштуваннях працівника.</p></div>;
+  };
+
+  return <Shell path="/workforce"><div className="page workspace-page">
+    <button className="back" onClick={() => router.push("/workforce")}><ArrowLeft size={16} /> AI-команда</button>
+    <header className="workspace-hero"><Identity color={w.color} size="lg" /><div><p className="eyebrow">РОБОЧИЙ ПРОСТІР AI-ПРАЦІВНИКА</p><h1>{w.name}</h1><p>{w.role}</p></div><Status>{hiredEmployee ? "АКТИВНИЙ" : "ПРАЦЮЄ"}</Status><div className="workspace-objective"><span>{hiredEmployee ? "СТАТУС" : "ПОТОЧНА ЦІЛЬ"}</span><h2>{hiredEmployee ? "Готовий до призначених завдань" : w.objective}</h2><div className="progress"><i style={{ width: hiredEmployee ? "100%" : `${w.progress}%` }} /></div><b>{hiredEmployee ? "100%" : `${w.progress}%`}</b><p><i /> {hiredEmployee ? `${autonomyLabels[hiredEmployee.autonomy]} рівень автономності` : "Зараз: очікує на перевірку документів."}</p></div></header>
+    <section className="workspace-sections">
+      <button className={open === "work" ? "open" : ""} onClick={() => setOpen(open === "work" ? "" : "work")} aria-expanded={open === "work"}><span><CircleGauge size={18} /> ПОТОЧНА РОБОТА</span><ChevronDown size={17} /></button>
+      {open === "work" && <motion.div className="disclosure" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}><div><small>{hiredEmployee ? "ГОТОВИЙ ДО РОБОТИ" : "АКТИВНЕ ЗАВДАННЯ"}</small><b>{hiredEmployee ? autonomyLabels[hiredEmployee.autonomy] : "Підготувати клієнта до закриття місяця"}</b><p>{hiredEmployee ? `${hiredEmployee.responsibilities.length} обов’язків · ${hiredEmployee.approvalRules.length} правил погодження` : "Фахівець із документів перевіряє первинні матеріали."}</p></div>{!hiredEmployee && <button className="secondary" onClick={() => router.push("/tasks/monthly-close")}>Відкрити завдання</button>}</motion.div>}
+      {detailSections.map(([key, Icon, label]) => <div className="workspace-section" key={key}><button className={open === key ? "open" : ""} onClick={() => setOpen(open === key ? "" : key)} aria-expanded={open === key}><span><Icon size={18} /> {label}</span><ChevronDown size={17} /></button>{open === key && hiredEmployee && <motion.div className="disclosure" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>{hiredDetails(key)}</motion.div>}</div>)}
+    </section>
+  </div></Shell>;
+}
+
+function CreateEmployee() {
+  const router = useRouter();
+  const { hireEmployee } = useWorkforce();
+  const [step, setStep] = useState(1);
+  const [roleNotice, setRoleNotice] = useState("");
+  const [responsibilities, setResponsibilities] = useState(responsibilityOptions.slice(0, 5));
+  const [autonomy, setAutonomy] = useState<AutonomyLevel>("controlled");
+  const [approvalRules, setApprovalRules] = useState(approvalOptions.slice(0, 4));
+  const [approvalLimit, setApprovalLimit] = useState("10 000 ₴");
+  const [launchPhase, setLaunchPhase] = useState<"form" | "loading" | "success">("form");
+  const stepLabels = ["Роль", "Обов’язки", "Автономність", "Погодження", "Запуск"];
+  const roles = [
+    { key: "accountant", name: "AI-бухгалтер", description: "Контролює фінансові операції, звіряє транзакції, готує закриття місяця та передає критичні рішення людині.", badge: "Доступний", color: "blue", capabilities: ["Звірка транзакцій", "Закриття місяця", "Контроль рахунків", "Фінансові звіти"] },
+    { key: "analyst", name: "AI-фінансовий аналітик", description: "Аналізує фінансові показники, готує прогнози та знаходить відхилення у фінансових даних.", badge: "Скоро", color: "teal" },
+    { key: "operations", name: "AI-операційний менеджер", description: "Контролює операційні процеси, дедлайни та виконання регулярних задач.", badge: "Скоро", color: "indigo" },
+    { key: "sales", name: "AI-асистент з продажів", description: "Допомагає працювати з лідами, CRM, follow-up та підготовкою комерційних матеріалів.", badge: "Скоро", color: "green" },
+  ];
+  const autonomyOptions = [
+    { key: "assistant" as const, name: "Асистент", description: "AI аналізує дані та готує рекомендації, але не виконує дії без підтвердження людини.", label: "Мінімальна автономність" },
+    { key: "controlled" as const, name: "Контрольований", description: "AI самостійно виконує звичайні задачі, але запитує погодження для критичних дій.", label: "Рекомендовано" },
+    { key: "autonomous" as const, name: "Автономний", description: "AI самостійно виконує більшість задач і звертається до людини лише у виняткових ситуаціях.", label: "Висока автономність" },
+  ];
+
+  const toggleOption = (value: string, values: string[], setValues: (items: string[]) => void) => {
+    setValues(values.includes(value) ? values.filter(item => item !== value) : [...values, value]);
+  };
+  const moveTo = (nextStep: number) => {
+    setStep(nextStep);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const launchEmployee = () => {
+    setLaunchPhase("loading");
+    window.setTimeout(() => {
+      const createdAt = new Date().toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
+      hireEmployee({ name: "AI-бухгалтер", role: "Фінанси та бухгалтерія", responsibilities, autonomy, approvalRules, approvalLimit, createdAt });
+      setLaunchPhase("success");
+    }, 900);
+  };
+
+  if (launchPhase === "loading") return <Shell path="/workforce"><div className="hire-result"><motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}><span className="sending-mark"><i /><i /></span><p>Налаштовуємо робоче середовище…</p><small>Застосовуємо обов’язки, автономність і правила погодження.</small></motion.div></div></Shell>;
+
+  if (launchPhase === "success") return <Shell path="/workforce"><div className="page hire-success"><motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}><span className="approved-mark"><Check size={28} /></span><p className="eyebrow">AI-БУХГАЛТЕР ГОТОВИЙ</p><h1>AI-бухгалтер приєднався<br />до вашої команди</h1><p className="hire-success-copy">Він уже готовий виконувати призначені задачі та передаватиме вам критичні рішення на погодження.</p><div className="hire-success-summary"><span><b>{responsibilities.length}</b> обов’язків</span><span><b>{autonomyLabels[autonomy]}</b> рівень автономності</span><span><b>{approvalRules.length}</b> правила погодження</span><span><b>Активний</b> статус</span></div><div className="hire-actions"><button className="primary" onClick={() => router.push("/office")}>Перейти до AI-офісу <ArrowRight size={16} /></button><button className="secondary" onClick={() => router.push("/workforce/accountant")}>Переглянути працівника</button></div></motion.div></div></Shell>;
+
+  return <Shell path="/workforce"><div className="page create-page hire-flow">
+    <button className="back" onClick={() => step === 1 ? router.push("/workforce") : moveTo(step - 1)}><ArrowLeft size={16} /> {step === 1 ? "AI-команда" : "Назад"}</button>
+    <nav className="hire-stepper" aria-label="Етапи наймання AI-працівника"><ol>{stepLabels.map((label, index) => <li key={label} className={step === index + 1 ? "active" : step > index + 1 ? "complete" : ""} aria-current={step === index + 1 ? "step" : undefined}><b>{step > index + 1 ? <Check size={12} /> : index + 1}</b><span>{label}</span></li>)}</ol></nav>
+    <p className="hire-step-caption">Крок {step} з 5 · {stepLabels[step - 1]}</p>
+    <AnimatePresence mode="wait">
+      <motion.section className="hire-stage" key={step} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: .2 }}>
+        {step === 1 && <><header className="hire-heading"><p className="eyebrow">КРОК 01 · РОЛЬ</p><h1>Кого ви хочете додати до команди?</h1><p>Оберіть роль AI-працівника. Налаштування та рівень автономності можна буде змінити пізніше.</p></header><div className="role-options">{roles.map(role => <button type="button" key={role.key} className={`role-option ${role.key === "accountant" ? "selected" : "coming"}`} aria-pressed={role.key === "accountant"} onClick={() => role.key === "accountant" ? setRoleNotice("") : setRoleNotice("Ця роль поки недоступна в демо. Оберіть AI-бухгалтера.")}><div className="role-option-top"><Identity color={role.color} /><span className={role.key === "accountant" ? "available" : "soon"}>{role.badge}</span></div><h2>{role.name}</h2><p>{role.description}</p>{role.capabilities && <ul>{role.capabilities.map(item => <li key={item}><Check size={12} /> {item}</li>)}</ul>}</button>)}</div><p className={`role-notice ${roleNotice ? "visible" : ""}`} role="status" aria-live="polite">{roleNotice || "AI-бухгалтер обраний і готовий до налаштування."}</p></>}
+
+        {step === 2 && <><header className="hire-heading"><p className="eyebrow">КРОК 02 · ОБОВ’ЯЗКИ</p><h1>Що має робити AI-бухгалтер?</h1><p>Оберіть задачі, за які AI-працівник відповідатиме у вашій команді.</p></header><div className="choice-layout"><fieldset className="check-list"><legend className="sr-only">Обов’язки AI-бухгалтера</legend>{responsibilityOptions.map(item => <label key={item}><input type="checkbox" checked={responsibilities.includes(item)} onChange={() => toggleOption(item, responsibilities, setResponsibilities)} /><span className="check-control"><Check size={13} /></span><b>{item}</b></label>)}</fieldset><aside className="choice-summary"><span>ОБРАНО</span><b>{responsibilities.length} {responsibilities.length === 1 ? "обов’язок" : "обов’язків"}</b><p>Обрані задачі сформують робочу зону відповідальності AI-бухгалтера.</p></aside></div></>}
+
+        {step === 3 && <><header className="hire-heading"><p className="eyebrow">КРОК 03 · АВТОНОМНІСТЬ</p><h1>Як самостійно може працювати AI-працівник?</h1><p>Ви контролюєте, які рішення AI може приймати самостійно.</p></header><div className="hire-autonomy-options">{autonomyOptions.map(option => <button type="button" key={option.key} className={autonomy === option.key ? "selected" : ""} aria-pressed={autonomy === option.key} onClick={() => setAutonomy(option.key)}><span className="radio-control">{autonomy === option.key && <i />}</span><small>{option.label}</small><h2>{option.name}</h2><p>{option.description}</p></button>)}</div><p className="hire-note"><ShieldCheck size={17} /> Рівень автономності можна змінити у налаштуваннях AI-працівника у будь-який момент.</p></>}
+
+        {step === 4 && <><header className="hire-heading"><p className="eyebrow">КРОК 04 · ПОГОДЖЕННЯ</p><h1>Які дії потребують вашого погодження?</h1><p>AI зупинить виконання та передасть рішення вам перед критичною дією.</p></header><div className="choice-layout approval-choice-layout"><fieldset className="check-list"><legend className="sr-only">Дії, що потребують погодження</legend>{approvalOptions.map(item => <label key={item}><input type="checkbox" checked={approvalRules.includes(item)} onChange={() => toggleOption(item, approvalRules, setApprovalRules)} /><span className="check-control"><Check size={13} /></span><b>{item}</b></label>)}</fieldset><aside className="limit-panel"><label htmlFor="approval-limit">Ліміт операції без погодження</label><input id="approval-limit" value={approvalLimit} onChange={event => setApprovalLimit(event.target.value)} inputMode="numeric" /><p>Операції вище цього ліміту автоматично передаватимуться вам на погодження.</p></aside></div></>}
+
+        {step === 5 && <><header className="hire-heading"><p className="eyebrow">КРОК 05 · ПЕРЕВІРКА І ЗАПУСК</p><h1>AI-бухгалтер готовий до роботи</h1><p>Перевірте налаштування перед запуском.</p></header><div className="review-card"><div className="review-identity"><Identity color="blue" size="lg" /><div><span>РОЛЬ</span><h2>AI-бухгалтер</h2><p>Фінанси та бухгалтерія</p></div><Status>ГОТОВИЙ ДО ЗАПУСКУ</Status></div><dl><div><dt>Обов’язки</dt><dd><b>{responsibilities.length} обов’язків</b><ul>{responsibilities.slice(0, 5).map(item => <li key={item}>{item}</li>)}</ul></dd></div><div><dt>Рівень автономності</dt><dd><b>{autonomyLabels[autonomy]}</b></dd></div><div><dt>Погодження</dt><dd><b>{approvalRules.length} {approvalRules.length === 1 ? "тип критичних дій" : "типи критичних дій"}</b></dd></div><div><dt>Ліміт</dt><dd><b>{approvalLimit}</b></dd></div></dl><div className="ready-block"><CheckCircle2 size={18} /><div><b>Готовий до запуску</b><span>Усі необхідні межі роботи визначено.</span></div></div></div></>}
+
+        <footer className="hire-footer"><button className="secondary" type="button" onClick={() => step === 1 ? router.push("/workforce") : moveTo(step - 1)}>Назад</button>{step < 5 ? <button className="primary" type="button" disabled={step === 2 && responsibilities.length === 0} onClick={() => moveTo(step + 1)}>Продовжити <ArrowRight size={16} /></button> : <button className="primary" type="button" onClick={launchEmployee}>Запустити AI-працівника <ArrowRight size={16} /></button>}</footer>
+      </motion.section>
+    </AnimatePresence>
+  </div></Shell>;
+}
 
 export function NovaApp({ screen }: { screen: string[] }) {
   if (!screen.length) return <Intro />;

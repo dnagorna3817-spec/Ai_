@@ -1,17 +1,46 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+
+export type AutonomyLevel = "assistant" | "controlled" | "autonomous";
+
+export type CreatedEmployee = {
+  name: "AI-бухгалтер";
+  role: "Фінанси та бухгалтерія";
+  responsibilities: string[];
+  autonomy: AutonomyLevel;
+  approvalRules: string[];
+  approvalLimit: string;
+  createdAt: string;
+};
 
 type WorkforceState = {
   approved: boolean;
+  createdEmployee: CreatedEmployee | null;
   approve: () => void;
+  hireEmployee: (employee: CreatedEmployee) => void;
   reset: () => void;
 };
+
+const employeeStorageKey = "ai-workforce-created-accountant-v1";
 
 const WorkforceContext = createContext<WorkforceState | null>(null);
 
 export function WorkforceProvider({ children }: { children: React.ReactNode }) {
   const [approved, setApproved] = useState(false);
+  const [createdEmployee, setCreatedEmployee] = useState<CreatedEmployee | null>(null);
+
+  useEffect(() => {
+    try {
+      const storedEmployee = window.localStorage.getItem(employeeStorageKey);
+      if (!storedEmployee) return;
+      const parsedEmployee = JSON.parse(storedEmployee) as CreatedEmployee;
+      const restoreTimer = window.setTimeout(() => setCreatedEmployee(parsedEmployee), 0);
+      return () => window.clearTimeout(restoreTimer);
+    } catch {
+      // The demo remains usable when browser storage is unavailable.
+    }
+  }, []);
 
   const approve = () => {
     setApproved(true);
@@ -21,7 +50,16 @@ export function WorkforceProvider({ children }: { children: React.ReactNode }) {
     setApproved(false);
   };
 
-  return <WorkforceContext.Provider value={{ approved, approve, reset }}>{children}</WorkforceContext.Provider>;
+  const hireEmployee = (employee: CreatedEmployee) => {
+    setCreatedEmployee(employee);
+    try {
+      window.localStorage.setItem(employeeStorageKey, JSON.stringify(employee));
+    } catch {
+      // Keep the current-session state even when persistence is unavailable.
+    }
+  };
+
+  return <WorkforceContext.Provider value={{ approved, createdEmployee, approve, hireEmployee, reset }}>{children}</WorkforceContext.Provider>;
 }
 
 export function useWorkforce() {
