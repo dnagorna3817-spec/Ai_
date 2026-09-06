@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Activity, ArrowDown, ArrowLeft, ArrowRight, Check, CheckCircle2, BookOpen, Building2, ChevronDown, CircleGauge, Database, FileCheck2, Files, Landmark, LayoutGrid, ListChecks, LockKeyhole, Mail, Plus, RefreshCcw, Search, ShieldCheck, Unplug, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { type AutonomyLevel, type CollaborationDecision, type CollaborationState, type ConnectedIntegration, type CreatedEmployee, type EmployeeId, type IntegrationId, type ReconciliationDecision, type ReconciliationState, useWorkforce } from "./workforce-state";
+import { type AutonomyLevel, type CollaborationState, type ConnectedIntegration, type CreatedEmployee, type EmployeeId, type IntegrationId, type ReconciliationDecision, type ReconciliationState, useWorkforce } from "./workforce-state";
 
 const workers = [
   {
@@ -19,36 +19,36 @@ const workers = [
     tasks: 7,
   },
   {
-    key: "tax",
-    name: "Податковий асистент",
-    role: "Податки та комплаєнс",
-    color: "teal",
-    status: "МОНІТОРИТЬ",
-    objective: "Перевірити зобов’язання за вересень",
-    progress: 84,
-    action: "Підтверджено строк сплати ПДВ",
+    key: "sales-assistant",
+    name: "AI-асистент з продажів",
+    role: "Продажі та клієнтська комунікація",
+    color: "green",
+    status: "АКТИВНИЙ",
+    objective: "Працювати з простроченими оплатами",
+    progress: 72,
+    action: "Готовий приймати завдання від команди",
     tasks: 4,
   },
   {
-    key: "documents",
-    name: "Фахівець із документів",
-    role: "Документи та перевірка",
-    color: "indigo",
-    status: "ПРАЦЮЄ",
-    objective: "Перевірити відсутні рахунки",
-    progress: 42,
-    action: "Виявлено 3 відсутні документи",
+    key: "analyst",
+    name: "AI-фінансовий аналітик",
+    role: "Фінансова аналітика · Скоро",
+    color: "teal",
+    status: "СКОРО",
+    objective: "Аналізувати показники та прогнози",
+    progress: 0,
+    action: "Роль готується до запуску",
     tasks: 9,
   },
   {
-    key: "client",
-    name: "Клієнтська комунікація",
-    role: "Робота з клієнтами",
-    color: "green",
-    status: "ОЧІКУЄ ВАШОГО РІШЕННЯ",
-    objective: "Запит документів підготовлено",
-    progress: 100,
-    action: "Підготовлено запит для Мілоша К.",
+    key: "operations",
+    name: "AI-операційний менеджер",
+    role: "Операційні процеси · Скоро",
+    color: "indigo",
+    status: "СКОРО",
+    objective: "Контролювати процеси та дедлайни",
+    progress: 0,
+    action: "Роль готується до запуску",
     tasks: 5,
   },
 ];
@@ -342,6 +342,35 @@ function Shell({ path, children }: { path: string; children: React.ReactNode }) 
   );
 }
 
+function OfficeGreeting() {
+  const [clock, setClock] = useState<{ date: string; greeting: string } | null>(null);
+
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      const hour = now.getHours();
+      const greeting = hour < 12 ? "Доброго ранку" : hour < 18 ? "Добрий день" : "Добрий вечір";
+      const date = now
+        .toLocaleDateString("uk-UA", { weekday: "long", day: "numeric", month: "long" })
+        .toLocaleUpperCase("uk-UA");
+      setClock({ date, greeting });
+    };
+    const initialTimer = window.setTimeout(updateClock, 0);
+    const refreshTimer = window.setInterval(updateClock, 60_000);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(refreshTimer);
+    };
+  }, []);
+
+  return (
+    <>
+      <p className="eyebrow">{clock?.date ?? "СЬОГОДНІ"}</p>
+      <h1>{clock ? `${clock.greeting}, Користувачу.` : "Вітаємо, Користувачу."}</h1>
+    </>
+  );
+}
+
 function Intro() {
   const router = useRouter();
   return (
@@ -353,7 +382,7 @@ function Intro() {
       <section className="intro-copy">
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <p className="eyebrow">AI-ПРАЦІВНИКИ ДЛЯ ОПЕРАЦІЙНОЇ РОБОТИ</p>
-          <h1>AI-працівники, які виконують роботу — не лише відповідають на запитання.</h1>
+          <h1>AI-працівники, які виконують роботу, а не просто відповідають на запитання.</h1>
           <p className="lede">Додавайте AI-працівників до команди, підключайте робочі системи та визначайте, що вони виконують самостійно, а що потребує вашого рішення.</p>
           <button className="primary large" onClick={() => router.push("/office")}>
             Відкрити AI-офіс <ArrowRight size={18} />
@@ -384,7 +413,7 @@ function Intro() {
         </div>
       </motion.section>
       <footer>
-        <span>Чотири фахівці.</span>
+        <span>Дві активні ролі.</span>
         <span>Одна злагоджена команда.</span>
         <span>Ви зберігаєте контроль.</span>
       </footer>
@@ -436,18 +465,20 @@ function ExecutiveOverview() {
   const { approved, employees, createdEmployee, integrations, reconciliation, collaboration } = useWorkforce();
   const metrics = getExecutiveMetrics(employees, integrations, reconciliation, collaboration);
   const accountantIntegrations = integrations.filter((item) => item.employeeId === "accountant");
+  const salesIntegrations = integrations.filter((item) => item.employeeId === "sales-assistant");
   const hasBank = accountantIntegrations.some((item) => item.id === "bank");
   const hasAccounting = accountantIntegrations.some((item) => item.id === "accounting");
   const hasCrm = integrations.some((item) => item.employeeId === "sales-assistant" && item.id === "crm");
   const hasSales = employees.some((item) => item.id === "sales-assistant");
-  const hasRequiredSources = hasBank && hasAccounting;
+  const hasSalesSources = salesIntegrations.some((item) => item.id === "crm") && salesIntegrations.some((item) => item.id === "email");
+  const hasRequiredSources = createdEmployee ? hasBank && hasAccounting : hasSalesSources;
   const completed = reconciliation?.status === "completed";
   const pendingException = reconciliation?.status === "exception";
   const pendingCollaboration = collaboration?.status === "approval";
   const resolvedDecision = reconciliation?.humanDecision === "approved" || reconciliation?.humanDecision === "accepted";
-  const executiveSummary = !createdEmployee ? "Додайте першого AI-працівника, щоб делегувати регулярну операційну роботу." : collaboration?.status === "completed" ? "AI-бухгалтер виявив прострочену оплату та передав роботу AI-асистенту з продажів. AI-асистент перевірив CRM, підготував follow-up і передав людині лише зовнішню комунікацію на погодження." : collaboration ? "AI-бухгалтер передав фінансовий контекст AI-асистенту з продажів. Спеціалізовані працівники разом готують follow-up клієнту." : !hasRequiredSources ? "AI-бухгалтер налаштований, але ще не має всіх робочих джерел даних." : completed ? "AI-бухгалтер самостійно перевірив 12 транзакцій, автоматично звірив 11 і передав одну невідповідність вам на рішення." : "AI-бухгалтер самостійно виконує фінансові завдання та передає вам лише рішення, які потребують людського контролю.";
+  const executiveSummary = !employees.length ? "Додайте першого AI-працівника, щоб делегувати регулярну операційну роботу." : !createdEmployee ? "AI-асистент з продажів налаштований для роботи з клієнтськими задачами та контрольованою зовнішньою комунікацією." : collaboration?.status === "completed" ? "AI-бухгалтер виявив прострочену оплату та передав роботу AI-асистенту з продажів. AI-асистент перевірив CRM, підготував follow-up і передав людині лише зовнішню комунікацію на погодження." : collaboration ? "AI-бухгалтер передав фінансовий контекст AI-асистенту з продажів. Спеціалізовані працівники разом готують follow-up клієнту." : !hasRequiredSources ? "AI-бухгалтер налаштований, але ще не має всіх робочих джерел даних." : completed ? "AI-бухгалтер самостійно перевірив 12 транзакцій, автоматично звірив 11 і передав одну невідповідність вам на рішення." : "AI-бухгалтер самостійно виконує фінансові завдання та передає вам лише рішення, які потребують людського контролю.";
 
-  if (!createdEmployee)
+  if (!employees.length)
     return (
       <section className="executive-overview executive-onboarding" aria-labelledby="executive-title">
         <div>
@@ -482,7 +513,7 @@ function ExecutiveOverview() {
         ["Виявив 1 фінансову невідповідність", "ПЕРЕДАНО ЛЮДИНІ"],
       ]
     : [];
-  const totalPending = (approved ? 0 : 1) + (pendingException ? 1 : 0) + (pendingCollaboration ? 1 : 0);
+  const totalPending = (createdEmployee && !approved ? 1 : 0) + (pendingException ? 1 : 0) + (pendingCollaboration ? 1 : 0);
 
   return (
     <section className="executive-overview" aria-labelledby="executive-title">
@@ -497,7 +528,7 @@ function ExecutiveOverview() {
         ) : collaboration ? (
           <button className="secondary" onClick={() => router.push("/tasks/payment-follow-up")}>{collaboration.status === "completed" ? "Переглянути спільний результат" : "Відкрити спільне завдання"} <ArrowRight size={15} /></button>
         ) : !hasRequiredSources ? (
-          <button className="primary" onClick={() => router.push("/workforce/accountant#connections")}>
+          <button className="primary" onClick={() => router.push(createdEmployee ? "/workforce/accountant#connections" : "/workforce/sales-assistant#connections")}>
             Підключити системи <ArrowRight size={15} />
           </button>
         ) : reconciliation ? (
@@ -561,7 +592,7 @@ function ExecutiveOverview() {
             </ol>
           ) : (
             <div className="executive-empty">
-              <p>{createdEmployee ? "Підключіть банк і бухгалтерську систему, щоб AI міг самостійно знайти роботу." : "Після найму тут з’явиться стислий підсумок виконаних AI дій."}</p>
+              <p>{createdEmployee ? "Підключіть банк і бухгалтерську систему, щоб AI міг самостійно знайти роботу." : "Підключіть CRM та Email, щоб AI-асистент міг працювати з клієнтськими задачами."}</p>
             </div>
           )}
         </section>
@@ -609,7 +640,7 @@ function ExecutiveOverview() {
                 Переглянути <ArrowRight size={14} />
               </button>
             </div>
-          ) : !createdEmployee ? (
+          ) : !employees.length ? (
             <div>
               <h3>Потрібен перший AI-працівник</h3>
               <p>Налаштуйте роль, обов’язки та межі автономності.</p>
@@ -618,12 +649,12 @@ function ExecutiveOverview() {
             <div>
               <span>БЛОКУЄ АВТОМАТИЧНИЙ СТАРТ</span>
               <h3>Підключіть робочі джерела</h3>
-              <p>Для звірки потрібні банк і бухгалтерська система.</p>
-              <button className="text-button" onClick={() => router.push("/workforce/accountant#connections")}>
+              <p>{createdEmployee ? "Для звірки потрібні банк і бухгалтерська система." : "Для роботи з клієнтами потрібні CRM та Email."}</p>
+              <button className="text-button" onClick={() => router.push(createdEmployee ? "/workforce/accountant#connections" : "/workforce/sales-assistant#connections")}>
                 Підключити системи <ArrowRight size={14} />
               </button>
             </div>
-          ) : !approved ? (
+          ) : !approved && createdEmployee ? (
             <div>
               <span>ПОГОДЖЕННЯ</span>
               <h3>Запит документів для закриття місяця</h3>
@@ -721,7 +752,7 @@ function CollaborationOverview() {
 
   if (!hasSales) return <section className="collaboration-recommendation"><div><p className="eyebrow">МОЖЛИВІСТЬ ДЛЯ КОМАНДИ</p><h2>Знайдено прострочену оплату, але немає AI-працівника для роботи з клієнтом</h2><p>AI-бухгалтер виявив рахунок ТОВ «Орбіта» на 48 000 ₴, прострочений на 12 днів. Наступний крок належить ролі, що працює з клієнтами.</p></div><button className="primary" onClick={() => router.push("/workforce/new")}>Найняти AI-асистента з продажів <ArrowRight size={15} /></button></section>;
 
-  if (!hasCrm || !hasEmail) return <section className="collaboration-recommendation"><div><p className="eyebrow">СПІЛЬНА РОБОТА</p><h2>AI-асистент з продажів готовий прийняти handoff</h2><p>{!hasCrm ? "Для аналізу клієнта підключіть CRM." : "Для демо follow-up підключіть Email."} Фінансовий контекст буде передано AI-бухгалтером без прямого доступу AI-асистента до банку.</p></div><button className="primary" onClick={() => router.push("/workforce/sales-assistant#connections")}>Підключити {!hasCrm ? "CRM" : "Email"} <ArrowRight size={15} /></button></section>;
+  if (!hasCrm || !hasEmail) return <section className="collaboration-recommendation"><div><p className="eyebrow">СПІЛЬНА РОБОТА</p><h2>AI-асистент з продажів готовий прийняти завдання</h2><p>{!hasCrm ? "Для аналізу клієнта підключіть CRM." : "Для демо follow-up підключіть Email."} Фінансовий контекст буде передано AI-бухгалтером без прямого доступу AI-асистента до банку.</p></div><button className="primary" onClick={() => router.push("/workforce/sales-assistant#connections")}>Підключити {!hasCrm ? "CRM" : "Email"} <ArrowRight size={15} /></button></section>;
 
   if (!collaboration) return null;
   const salesStep = collaboration.status === "completed" ? "ЗАВЕРШЕНО" : collaboration.status === "approval" ? "ОЧІКУЄ РІШЕННЯ" : collaboration.status === "revision" ? "ДООПРАЦЬОВУЄ" : "ПРАЦЮЄ";
@@ -764,49 +795,9 @@ function Dashboard() {
               objective: "Готує закриття серпня",
               action: "Проаналізовано 48 транзакцій",
             };
-  const salesState = { key: "sales-assistant", name: "AI-асистент з продажів", role: "Продажі та клієнтська комунікація", color: "green", status: collaboration?.status === "approval" ? "ОЧІКУЄ ВАШОГО РІШЕННЯ" : collaboration?.status === "completed" ? "АКТИВНИЙ" : "ПРАЦЮЄ", objective: collaboration?.status === "completed" ? "Follow-up завершено" : collaboration ? "Готує follow-up для ТОВ «Орбіта»" : "Очікує робочий контекст", progress: collaboration?.status === "completed" ? 100 : collaboration ? 82 : 0, action: collaboration?.status === "completed" ? "Демо-відправлення зафіксовано" : collaboration ? "Перевірено CRM та історію контакту" : "Готовий приймати handoff", tasks: 0 };
-  const officeWorkers = [accountantState, ...(salesEmployee ? [salesState] : [])];
+  const salesState = { key: "sales-assistant", name: "AI-асистент з продажів", role: "Продажі та клієнтська комунікація", color: "green", status: collaboration?.status === "approval" ? "ОЧІКУЄ ВАШОГО РІШЕННЯ" : collaboration?.status === "completed" ? "АКТИВНИЙ" : "ПРАЦЮЄ", objective: collaboration?.status === "completed" ? "Follow-up завершено" : collaboration ? "Готує follow-up для ТОВ «Орбіта»" : "Очікує робочий контекст", progress: collaboration?.status === "completed" ? 100 : collaboration ? 82 : 0, action: collaboration?.status === "completed" ? "Демо-відправлення зафіксовано" : collaboration ? "Перевірено CRM та історію контакту" : "Готовий приймати завдання від команди", tasks: 0 };
+  const officeWorkers = [...(createdEmployee ? [accountantState] : []), ...(salesEmployee ? [salesState] : [])];
   const activities = [
-    ...(createdEmployee
-      ? [
-          {
-            time: "09:42",
-            actor: "AI-бухгалтер",
-            text: "Проаналізував 48 серпневих транзакцій.",
-            kind: "AI ACTION",
-          },
-          {
-            time: "09:46",
-            actor: "AI-бухгалтер",
-            text: "Виявив 3 відсутні первинні документи.",
-            kind: "AI ACTION",
-          },
-          {
-            time: "09:47",
-            actor: "Передача",
-            text: "Завдання автоматично передано Фахівцю із документів.",
-            kind: "HANDOFF",
-          },
-          {
-            time: "09:51",
-            actor: "Фахівець із документів",
-            text: "Перевірив доступні документи та визначив 3 відсутні рахунки.",
-            kind: "AI ACTION",
-          },
-          {
-            time: "09:54",
-            actor: "Передача",
-            text: "Завдання автоматично передано Клієнтській комунікації.",
-            kind: "HANDOFF",
-          },
-          {
-            time: "10:01",
-            actor: "Клієнтська комунікація",
-            text: "Підготувала запит документів. Очікує рішення Користувача.",
-            kind: "AI ACTION",
-          },
-        ]
-      : []),
     ...(approved
       ? [
           {
@@ -817,8 +808,8 @@ function Dashboard() {
           },
           {
             time: "10:04",
-            actor: "Клієнтська комунікація",
-            text: "Надіслала запит документів Мілошу К.",
+            actor: "AI-бухгалтер",
+            text: "Продовжив закриття місяця після погодження запиту.",
             kind: "AI ACTION",
           },
         ]
@@ -853,16 +844,15 @@ function Dashboard() {
     "HUMAN ACTION": "ДІЯ ЛЮДИНИ",
     "DEMO CONNECTION": "ДЕМО-ПІДКЛЮЧЕННЯ",
   } as const;
-  const activeTasks = !createdEmployee ? 0 : (reconciliation && reconciliation.status !== "completed" ? 1 : 0) + (collaboration && collaboration.status !== "completed" ? 1 : 0);
-  const pendingDecisions = !createdEmployee ? 0 : (approved ? 0 : 1) + (reconciliation?.status === "exception" ? 1 : 0) + (collaboration?.status === "approval" ? 1 : 0);
+  const activeTasks = !employees.length ? 0 : (reconciliation && reconciliation.status !== "completed" ? 1 : 0) + (collaboration && collaboration.status !== "completed" ? 1 : 0);
+  const pendingDecisions = !employees.length ? 0 : (createdEmployee && !approved ? 1 : 0) + (reconciliation?.status === "exception" ? 1 : 0) + (collaboration?.status === "approval" ? 1 : 0);
   return (
     <Shell path="/office">
       <div className="page office-page">
         <header className="page-head office-head">
           <div>
-            <p className="eyebrow">ЧЕТВЕР, 4 ВЕРЕСНЯ</p>
-            <h1>Доброго ранку, Користувачу.</h1>
-            <p>{createdEmployee ? "Ваша AI-команда працює." : "Ваш AI-офіс готовий до налаштування."}</p>
+            <OfficeGreeting />
+            <p>{employees.length ? "Ваша AI-команда працює." : "Ваш AI-офіс готовий до налаштування."}</p>
           </div>
           <div className="summary">
             <span>
@@ -880,7 +870,7 @@ function Dashboard() {
         </header>
         <ExecutiveOverview />
         <CollaborationOverview />
-        {createdEmployee && (
+        {employees.length > 0 && (
           <section className={`team-focus ${officeWorkers.length === 1 ? "single-worker" : ""}`}>
             <div className="office-section-head">
               <div>
@@ -1728,7 +1718,7 @@ function Workforce() {
   const { employees, integrations, reconciliation, collaboration } = useWorkforce();
 
   const employeeStatus = (employee: CreatedEmployee) => {
-    if (employee.id === "sales-assistant" && collaboration) return collaboration.status === "completed" ? { tasks: 0, action: "Follow-up завершено" } : { tasks: 1, action: collaboration.status === "approval" ? "Повідомлення очікує погодження" : "Опрацьовує handoff від AI-бухгалтера" };
+    if (employee.id === "sales-assistant" && collaboration) return collaboration.status === "completed" ? { tasks: 0, action: "Follow-up завершено" } : { tasks: 1, action: collaboration.status === "approval" ? "Повідомлення очікує погодження" : "Опрацьовує завдання від AI-бухгалтера" };
     if (employee.id === "accountant" && collaboration) return { tasks: reconciliation?.status === "completed" ? 0 : 1, action: "Передав follow-up AI-асистенту з продажів" };
     return { tasks: reconciliation && reconciliation.status !== "completed" ? 1 : 0, action: reconciliation?.status === "completed" ? "Завершив звірку транзакцій" : reconciliation ? "Виконує звірку транзакцій" : `Приєднався до команди о ${employee.createdAt}` };
   };
@@ -2230,7 +2220,7 @@ function Workspace({ employee = "accountant" }: { employee?: string }) {
             <div>
               <p className="eyebrow">ГОТОВИЙ ДО АВТОМАТИЧНОЇ РОБОТИ</p>
               <h2>{config.name} готовий до роботи</h2>
-              <p>{employeeId === "sales-assistant" ? "CRM і Email підключено. AI може приймати handoff від інших працівників та готувати комунікацію в межах своїх правил." : "AI автоматично аналізує підключені джерела та знаходить завдання відповідно до своїх обов’язків."}</p>
+              <p>{employeeId === "sales-assistant" ? "CRM і Email підключено. AI може приймати завдання від інших працівників та готувати комунікацію в межах своїх правил." : "AI автоматично аналізує підключені джерела та знаходить завдання відповідно до своїх обов’язків."}</p>
             </div>
             <button className="primary" onClick={() => router.push("/office")}>
               {employeeId === "accountant" && reconciliation?.status === "completed" ? "Переглянути результат в AI-офісі" : "Перейти до AI-офісу"} <ArrowRight size={15} />
@@ -2671,7 +2661,7 @@ function SalesTask() {
   const salesIntegrations = integrations.filter((item) => item.employeeId === "sales-assistant");
   const hasCrm = salesIntegrations.some((item) => item.id === "crm");
   const hasEmail = salesIntegrations.some((item) => item.id === "email");
-  if (!hasSales) return <Shell path="/tasks/payment-follow-up"><div className="page task-data-gate"><Users size={27} /><p className="eyebrow">ПОТРІБЕН AI-ПРАЦІВНИК</p><h1>Немає AI-працівника для роботи з клієнтом</h1><p>Найміть AI-асистента з продажів, щоб приймати handoff від AI-бухгалтера.</p><button className="primary" onClick={() => router.push("/workforce/new")}>Найняти AI-асистента з продажів</button></div></Shell>;
+  if (!hasSales) return <Shell path="/tasks/payment-follow-up"><div className="page task-data-gate"><Users size={27} /><p className="eyebrow">ПОТРІБЕН AI-ПРАЦІВНИК</p><h1>Немає AI-працівника для роботи з клієнтом</h1><p>Найміть AI-асистента з продажів, щоб отримувати завдання від AI-бухгалтера.</p><button className="primary" onClick={() => router.push("/workforce/new")}>Найняти AI-асистента з продажів</button></div></Shell>;
   if (!hasCrm || !hasEmail) return <Shell path="/tasks/payment-follow-up"><div className="page task-data-gate"><Database size={27} /><p className="eyebrow">НЕДОСТАТНЬО ДАНИХ</p><h1>{!hasCrm ? "Підключіть CRM" : "Підключіть Email"}</h1><p>{!hasCrm ? "Для цього завдання AI-асистенту з продажів потрібен доступ до CRM." : "Для демо follow-up підключіть Email."}</p><button className="primary" onClick={() => router.push("/workforce/sales-assistant#connections")}>Перейти до підключень</button></div></Shell>;
   if (!collaboration) return <Shell path="/tasks/payment-follow-up"><div className="hire-result"><div><span className="sending-mark"><i /><i /></span><p>AI-команда готує передачу контексту…</p></div></div></Shell>;
 
@@ -2685,7 +2675,7 @@ function SalesTask() {
     ["Погодження людини", completed ? "Погоджено людиною" : approval ? "Очікує вашого рішення" : "У роботі", completed ? "ЗАВЕРШЕНО" : approval ? "ОЧІКУЄ" : "У РОБОТІ"],
     ["Завершення", completed ? "Демо-відправлення зафіксовано" : "Продовжить після рішення людини", completed ? "ЗАВЕРШЕНО" : "ОЧІКУЄ"],
   ];
-  return <Shell path="/tasks/payment-follow-up"><div className="page sales-task-page"><div className="task-toolbar"><button className="back" onClick={() => router.push("/office")}><ArrowLeft size={16} /> Назад до AI-офісу</button></div><header className="sales-task-head"><div><p className="eyebrow">СПІЛЬНЕ ЗАВДАННЯ · HANDOFF МІЖ AI</p><h1>Follow-up щодо<br />простроченої оплати</h1><p>AI-асистент з продажів отримав завдання від AI-бухгалтера та готує комунікацію з клієнтом.</p></div><Status tone={approval ? "waiting" : "live"}>{completed ? "ЗАВЕРШЕНО" : approval ? "ОЧІКУЄ РІШЕННЯ" : "AI-КОМАНДА ПРАЦЮЄ"}</Status></header>
+  return <Shell path="/tasks/payment-follow-up"><div className="page sales-task-page"><div className="task-toolbar"><button className="back" onClick={() => router.push("/office")}><ArrowLeft size={16} /> Назад до AI-офісу</button></div><header className="sales-task-head"><div><p className="eyebrow">СПІЛЬНЕ ЗАВДАННЯ · ПЕРЕДАЧА МІЖ AI</p><h1>Follow-up щодо<br />простроченої оплати</h1><p>AI-асистент з продажів отримав завдання від AI-бухгалтера та готує комунікацію з клієнтом.</p></div><Status tone={approval ? "waiting" : "live"}>{completed ? "ЗАВЕРШЕНО" : approval ? "ОЧІКУЄ РІШЕННЯ" : "AI-КОМАНДА ПРАЦЮЄ"}</Status></header>
     <section className="handoff-context"><Identity color="blue" /><div><span>ПЕРЕДАНО ВІД AI-БУХГАЛТЕРА</span><h2>ТОВ «Орбіта» · INV-1048</h2><p>48 000 ₴ · 12 днів прострочення · не оплачено</p></div><ArrowRight size={18} /><Identity color="green" /><div><span>ОТРИМАВ</span><h2>AI-асистент з продажів</h2><p>CRM + Email</p></div></section>
     <aside className="access-boundary"><ShieldCheck size={18} /><div><b>Доступ до фінансових даних</b><p>AI-асистент з продажів не має прямого доступу до банківської системи. Він отримав лише контекст цього завдання від AI-бухгалтера.</p></div></aside>
     <div className="sales-task-layout"><section className="sales-workflow"><p className="eyebrow">ХІД РОБОТИ</p>{workflow.map((step, index) => <article className={step[2] === "ОЧІКУЄ" ? "waiting" : step[2] === "У РОБОТІ" ? "current" : "complete"} key={step[0]}><span>{String(index + 1).padStart(2,"0")}</span><div><small>{step[2]}</small><h3>{step[0]}</h3><p>{step[1]}</p></div>{step[2] === "ЗАВЕРШЕНО" ? <CheckCircle2 size={17} /> : <i />}</article>)}</section><aside className="client-context"><p className="eyebrow">КОНТЕКСТ КЛІЄНТА · ДЕМО-ДАНІ</p><h2>ТОВ «Орбіта»</h2><dl><div><dt>Співпраця</dt><dd>3 роки</dd></div><div><dt>Попередні рахунки</dt><dd>17 оплачено</dd></div><div><dt>Попередні затримки</dt><dd>2</dd></div><div><dt>Останній контакт</dt><dd>6 днів тому</dd></div><div><dt>Активна угода</dt><dd>Так</dd></div></dl></aside></div>
@@ -2710,9 +2700,52 @@ function SalesApproval() {
   if (collaboration.status === "revision") return <Shell path="/approvals/payment-follow-up"><div className="approval-result"><div><span className="sending-mark"><i /><i /></span><p>AI-асистент з продажів оновлює повідомлення…</p><small>{collaboration.revisionReason}</small></div></div></Shell>;
   if (collaboration.status === "resuming") return <Shell path="/approvals/payment-follow-up"><div className="approval-result"><div><span className="sending-mark"><i /><i /></span><p>Фіксуємо демо-відправлення…</p><small>Жодне повідомлення не надсилається у зовнішню систему.</small></div></div></Shell>;
   if (collaboration.status === "completed") return <Shell path="/approvals/payment-follow-up"><div className="approval-result"><div><span className="approved-mark"><Check size={28} /></span><h1>Follow-up завершено</h1><p>Демо-відправлення зафіксовано.</p><small>Реальний email не надсилався.</small><div><button className="secondary" onClick={() => router.push("/tasks/payment-follow-up")}>Переглянути результат</button><button className="primary" onClick={() => router.push("/office")}>Повернутися до AI-офісу <ArrowRight size={15} /></button></div></div></div></Shell>;
-  const approve = () => { setPhase("sending"); window.setTimeout(() => decideCollaboration("approved" as CollaborationDecision), 500); };
+  const approve = () => { setPhase("sending"); window.setTimeout(() => decideCollaboration("approved"), 500); };
   const reasons = ["Зробити тон м’якшим", "Додати конкретний термін", "Не згадувати суму", "Інше"];
-  return <Shell path="/approvals/payment-follow-up"><div className="page sales-approval-page"><button className="back" onClick={() => router.push("/tasks/payment-follow-up")}><ArrowLeft size={16} /> Назад до завдання</button><header><p className="eyebrow">ПОГОДЖЕННЯ · AI-АСИСТЕНТ З ПРОДАЖІВ</p><h1>Повідомлення клієнту<br />щодо простроченої оплати</h1><p>ТОВ «Орбіта» · 48 000 ₴</p></header><div className="sales-approval-layout"><section className="sales-message approval-draft"><header><div><p className="eyebrow">ПІДГОТОВЛЕНО AI</p><h2>Follow-up щодо INV-1048</h2></div><Status tone="waiting">НЕ НАДІСЛАНО</Status></header><p>{salesDraft(collaboration.draftVersion, collaboration.revisionReason)}</p><footer><span>Автор: AI-асистент з продажів · Джерело фінансового контексту: AI-бухгалтер</span></footer></section><aside className="sales-decision"><p className="eyebrow">ЧОМУ ПОТРІБНЕ ВАШЕ РІШЕННЯ</p><h2>Це зовнішня комунікація з клієнтом</h2><p>Для AI-асистента з продажів налаштовано правило погодження перед надсиланням повідомлень.</p><div className="demo-boundary"><ShieldCheck size={17} /><p><b>Демо: повідомлення не надсилається у зовнішню систему.</b><br />Після погодження буде зафіксовано лише результат сценарію.</p></div>{phase === "sending" ? <div className="decision-resuming"><span className="sending-mark"><i /><i /></span><b>Передаємо рішення Sales AI…</b></div> : revisionOpen ? <fieldset className="revision-options"><legend>Що потрібно змінити?</legend>{reasons.map((reason) => <label key={reason}><input type="radio" name="revision-reason" checked={revisionReason === reason} onChange={() => setRevisionReason(reason)} /><span className="radio-control">{revisionReason === reason && <i />}</span><b>{reason}</b></label>)}<div><button className="secondary" onClick={() => setRevisionOpen(false)}>Скасувати</button><button className="primary" onClick={() => requestCollaborationRevision(revisionReason)}>Передати на доопрацювання</button></div></fieldset> : <div className="sales-approval-actions"><button className="primary" onClick={approve}>Погодити та надіслати в демо</button><button className="secondary" onClick={() => setRevisionOpen(true)}>Повернути на доопрацювання</button><button className="ghost" onClick={() => decideCollaboration("deferred")}>Відкласти</button></div>}</aside></div></div></Shell>;
+  return (
+    <Shell path="/approvals/payment-follow-up">
+      <div className="page sales-approval-page">
+        <button className="back" onClick={() => router.push("/tasks/payment-follow-up")}><ArrowLeft size={16} /> Назад до завдання</button>
+        <header>
+          <p className="eyebrow">ПОГОДЖЕННЯ · AI-АСИСТЕНТ З ПРОДАЖІВ</p>
+          <h1>Повідомлення клієнту<br />щодо простроченої оплати</h1>
+          <p>ТОВ «Орбіта» · 48 000 ₴</p>
+        </header>
+        <div className="sales-approval-layout">
+          <section className="sales-message approval-draft">
+            <header>
+              <div><p className="eyebrow">ПІДГОТОВЛЕНО AI</p><h2>Follow-up щодо INV-1048</h2></div>
+              <Status tone="waiting">НЕ НАДІСЛАНО</Status>
+            </header>
+            <p>{salesDraft(collaboration.draftVersion, collaboration.revisionReason)}</p>
+            <footer><span>Автор: AI-асистент з продажів · Джерело фінансового контексту: AI-бухгалтер</span></footer>
+          </section>
+          <aside className="sales-decision">
+            <p className="eyebrow">ЧОМУ ПОТРІБНЕ ВАШЕ РІШЕННЯ</p>
+            <h2>Це зовнішня комунікація з клієнтом</h2>
+            <p>Для AI-асистента з продажів налаштовано правило погодження перед надсиланням повідомлень.</p>
+            <div className="demo-boundary"><ShieldCheck size={17} /><p><b>Демо: повідомлення не надсилається у зовнішню систему.</b><br />Після погодження буде зафіксовано лише результат сценарію.</p></div>
+            {phase === "sending" ? (
+              <div className="decision-resuming"><span className="sending-mark"><i /><i /></span><b>Передаємо рішення AI-асистенту з продажів…</b></div>
+            ) : revisionOpen ? (
+              <fieldset className="revision-options">
+                <legend>Що потрібно змінити?</legend>
+                {reasons.map((reason) => <label key={reason}><input type="radio" name="revision-reason" checked={revisionReason === reason} onChange={() => setRevisionReason(reason)} /><span className="radio-control">{revisionReason === reason && <i />}</span><b>{reason}</b></label>)}
+                <div><button className="secondary" onClick={() => setRevisionOpen(false)}>Скасувати</button><button className="primary" onClick={() => requestCollaborationRevision(revisionReason)}>Передати на доопрацювання</button></div>
+              </fieldset>
+            ) : (
+              <div className="sales-approval-actions">
+                {collaboration.approvalStatus === "deferred" && <p role="status">Рішення відкладено. Завдання залишається відкритим.</p>}
+                <button className="primary" onClick={approve}>Погодити та надіслати в демо</button>
+                <button className="secondary" onClick={() => setRevisionOpen(true)}>Повернути на доопрацювання</button>
+                <button className="ghost" onClick={() => decideCollaboration("deferred")}>Відкласти</button>
+              </div>
+            )}
+          </aside>
+        </div>
+      </div>
+    </Shell>
+  );
 }
 
 export function NovaApp({ screen }: { screen: string[] }) {
