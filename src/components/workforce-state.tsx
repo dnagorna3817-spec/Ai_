@@ -108,6 +108,8 @@ const reconciliationStorageKey = "ai-workforce-reconciliation-v1";
 const collaborationStorageKey = "ai-workforce-collaboration-v1";
 const monthlyApprovalStorageKey = "ai-workforce-monthly-approved-v1";
 const demoInitializationStorageKey = "ai-workforce-demo-initialized-v1";
+const demoVersionStorageKey = "ai-workforce-demo-version";
+const currentDemoVersion = 2;
 
 const demoTime = () => new Date().toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
 const demoTimeAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
@@ -204,6 +206,26 @@ const createDefaultCollaboration = (): CollaborationState => ({
   ],
 });
 
+const createDefaultWorkspace = () => ({
+  approved: true,
+  mode: "working" as DemoMode,
+  employees: createDefaultEmployees(),
+  integrations: createDefaultIntegrations(),
+  reconciliation: createDefaultReconciliation(),
+  collaboration: createDefaultCollaboration(),
+});
+
+const persistDefaultWorkspace = (workspace: ReturnType<typeof createDefaultWorkspace>) => {
+  window.localStorage.removeItem(legacyEmployeeStorageKey);
+  window.localStorage.setItem(employeesStorageKey, JSON.stringify(workspace.employees));
+  window.localStorage.setItem(integrationsStorageKey, JSON.stringify(workspace.integrations));
+  window.localStorage.setItem(reconciliationStorageKey, JSON.stringify(workspace.reconciliation));
+  window.localStorage.setItem(collaborationStorageKey, JSON.stringify(workspace.collaboration));
+  window.localStorage.setItem(monthlyApprovalStorageKey, "true");
+  window.localStorage.setItem(demoInitializationStorageKey, workspace.mode);
+  window.localStorage.setItem(demoVersionStorageKey, String(currentDemoVersion));
+};
+
 const WorkforceContext = createContext<WorkforceState | null>(null);
 
 export function WorkforceProvider({ children }: { children: React.ReactNode }) {
@@ -229,14 +251,16 @@ export function WorkforceProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    let nextApproved = true;
-    let nextMode: DemoMode = "working";
-    let nextEmployees = createDefaultEmployees();
-    let nextIntegrations = createDefaultIntegrations();
-    let nextReconciliation: ReconciliationState | null = createDefaultReconciliation();
-    let nextCollaboration: CollaborationState | null = createDefaultCollaboration();
+    const initialWorkspace = createDefaultWorkspace();
+    let nextApproved = initialWorkspace.approved;
+    let nextMode: DemoMode = initialWorkspace.mode;
+    let nextEmployees = initialWorkspace.employees;
+    let nextIntegrations = initialWorkspace.integrations;
+    let nextReconciliation: ReconciliationState | null = initialWorkspace.reconciliation;
+    let nextCollaboration: CollaborationState | null = initialWorkspace.collaboration;
 
     try {
+      const storedDemoVersion = Number(window.localStorage.getItem(demoVersionStorageKey) || "0");
       const storedEmployees = window.localStorage.getItem(employeesStorageKey);
       const legacyEmployee = window.localStorage.getItem(legacyEmployeeStorageKey);
       const storedDemoMode = window.localStorage.getItem(demoInitializationStorageKey) as DemoMode | null;
@@ -244,19 +268,9 @@ export function WorkforceProvider({ children }: { children: React.ReactNode }) {
       const storedReconciliation = window.localStorage.getItem(reconciliationStorageKey);
       const storedCollaboration = window.localStorage.getItem(collaborationStorageKey);
       const storedApproved = window.localStorage.getItem(monthlyApprovalStorageKey);
-      const hasExistingState = Boolean(storedEmployees || legacyEmployee || storedIntegrations || storedReconciliation || storedCollaboration || storedApproved);
 
-      if (!storedDemoMode && !hasExistingState) {
-        const defaultEmployees = createDefaultEmployees();
-        const defaultIntegrations = createDefaultIntegrations();
-        const defaultReconciliation = createDefaultReconciliation();
-        const defaultCollaboration = createDefaultCollaboration();
-        window.localStorage.setItem(employeesStorageKey, JSON.stringify(defaultEmployees));
-        window.localStorage.setItem(integrationsStorageKey, JSON.stringify(defaultIntegrations));
-        window.localStorage.setItem(reconciliationStorageKey, JSON.stringify(defaultReconciliation));
-        window.localStorage.setItem(collaborationStorageKey, JSON.stringify(defaultCollaboration));
-        window.localStorage.setItem(monthlyApprovalStorageKey, "true");
-        window.localStorage.setItem(demoInitializationStorageKey, "working");
+      if (storedDemoVersion < currentDemoVersion) {
+        persistDefaultWorkspace(initialWorkspace);
       } else {
         let restoredEmployees: CreatedEmployee[] = storedEmployees ? JSON.parse(storedEmployees) : [];
         if (!restoredEmployees.length && legacyEmployee) {
@@ -412,15 +426,15 @@ export function WorkforceProvider({ children }: { children: React.ReactNode }) {
   const resetReconciliation = () => { if (!hasReconciliationSources || !createdEmployee) persistReconciliation(null); else persistReconciliation(createReconciliation()); };
 
   const resetDemo = () => {
-    setApproved(false); setDemoMode("clean"); setEmployees([]); setIntegrations([]); setReconciliation(null); setCollaboration(null);
+    const workspace = createDefaultWorkspace();
+    setApproved(workspace.approved);
+    setDemoMode(workspace.mode);
+    setEmployees(workspace.employees);
+    setIntegrations(workspace.integrations);
+    setReconciliation(workspace.reconciliation);
+    setCollaboration(workspace.collaboration);
     try {
-      window.localStorage.removeItem(legacyEmployeeStorageKey);
-      window.localStorage.removeItem(employeesStorageKey);
-      window.localStorage.removeItem(integrationsStorageKey);
-      window.localStorage.removeItem(reconciliationStorageKey);
-      window.localStorage.removeItem(collaborationStorageKey);
-      window.localStorage.removeItem(monthlyApprovalStorageKey);
-      window.localStorage.setItem(demoInitializationStorageKey, "clean");
+      persistDefaultWorkspace(workspace);
     } catch {}
   };
 

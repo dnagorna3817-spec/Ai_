@@ -268,7 +268,7 @@ function DemoResetDialog({ onClose, onReset }: { onClose: () => void; onReset: (
         </span>
         <p className="eyebrow">КЕРУВАННЯ ДЕМО</p>
         <h2 id="reset-dialog-title">Скинути демо-дані?</h2>
-        <p className="dialog-lede">AI-працівники, підключення та історія демо-сценарію будуть очищені.</p>
+        <p className="dialog-lede">AI-працівники, підключення та історія повернуться до початкового готового демо-сценарію.</p>
         <footer>
           <button className="secondary" onClick={onClose}>
             Скасувати
@@ -479,7 +479,7 @@ function ExecutiveOverview() {
   const pendingException = reconciliation?.status === "exception";
   const pendingCollaboration = collaboration?.status === "approval";
   const resolvedDecision = reconciliation?.humanDecision === "approved" || reconciliation?.humanDecision === "accepted";
-  const executiveSummary = !employees.length ? "Додайте першого AI-працівника, щоб делегувати регулярну операційну роботу." : demoMode === "working" && collaboration?.status === "approval" ? "AI-бухгалтер і AI-асистент з продажів виконують поточні завдання та передають вам лише дії, що потребують рішення людини." : !createdEmployee ? "AI-асистент з продажів налаштований для роботи з клієнтськими задачами та контрольованою зовнішньою комунікацією." : collaboration?.status === "completed" ? "AI-бухгалтер виявив прострочену оплату та передав роботу AI-асистенту з продажів. AI-асистент перевірив CRM, підготував follow-up і передав людині лише зовнішню комунікацію на погодження." : collaboration ? "AI-бухгалтер передав фінансовий контекст AI-асистенту з продажів. Спеціалізовані працівники разом готують follow-up клієнту." : !hasRequiredSources ? "AI-бухгалтер налаштований, але ще не має всіх робочих джерел даних." : completed ? "AI-бухгалтер самостійно перевірив 12 транзакцій, автоматично звірив 11 і передав одну невідповідність вам на рішення." : "AI-бухгалтер самостійно виконує фінансові завдання та передає вам лише рішення, які потребують людського контролю.";
+  const executiveSummary = !employees.length ? "Додайте першого AI-працівника, щоб делегувати регулярну операційну роботу." : demoMode === "working" && collaboration?.status === "approval" ? "AI-бухгалтер і AI-асистент з продажів виконують поточну роботу та передають вам лише дії, що потребують рішення людини." : !createdEmployee ? "AI-асистент з продажів налаштований для роботи з клієнтськими задачами та контрольованою зовнішньою комунікацією." : collaboration?.status === "completed" ? "AI-бухгалтер виявив прострочену оплату та передав роботу AI-асистенту з продажів. AI-асистент перевірив CRM, підготував follow-up і передав людині лише зовнішню комунікацію на погодження." : collaboration ? "AI-бухгалтер передав фінансовий контекст AI-асистенту з продажів. Спеціалізовані працівники разом готують follow-up клієнту." : !hasRequiredSources ? "AI-бухгалтер налаштований, але ще не має всіх робочих джерел даних." : completed ? "AI-бухгалтер самостійно перевірив 12 транзакцій, автоматично звірив 11 і передав одну невідповідність вам на рішення." : "AI-бухгалтер самостійно виконує фінансові завдання та передає вам лише рішення, які потребують людського контролю.";
 
   if (!employees.length)
     return (
@@ -893,8 +893,8 @@ function Dashboard() {
           <section className={`team-focus ${officeWorkers.length === 1 ? "single-worker" : ""}`}>
             <div className="office-section-head">
               <div>
-                <p className="eyebrow">ВАША AI-КОМАНДА</p>
-                <h2>Хто працює зараз.</h2>
+                <p className="eyebrow">ЗАРАЗ У РОБОТІ</p>
+                <h2>Поточні завдання AI-команди.</h2>
               </div>
               <button className="text-button" onClick={() => router.push("/workforce")}>
                 Переглянути команду <ArrowRight size={15} />
