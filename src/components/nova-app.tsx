@@ -3,12 +3,13 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity, ArrowDown, ArrowLeft, ArrowRight, BarChart3, Check, CheckCircle2,
-  ChevronDown, CircleGauge, FileCheck2, Files, LayoutGrid, ListChecks,
-  LockKeyhole, Plus, Settings2, ShieldCheck, Users, X
+  BookOpen, Building2, ChevronDown, CircleGauge, Database, FileCheck2, Files,
+  Landmark, LayoutGrid, ListChecks, LockKeyhole, Mail, Plus, Settings2,
+  ShieldCheck, Unplug, Users, X
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { type AutonomyLevel, useWorkforce } from "./workforce-state";
+import { useEffect, useRef, useState } from "react";
+import { type AutonomyLevel, type ConnectedIntegration, type IntegrationId, useWorkforce } from "./workforce-state";
 
 const workers = [
   { key: "accountant", name: "AI-бухгалтер", role: "Фінанси та бухгалтерія", color: "blue", status: "ПРАЦЮЄ", objective: "Підготувати закриття серпня", progress: 68, action: "Проаналізовано 48 транзакцій", tasks: 7 },
@@ -47,6 +48,28 @@ const autonomyLabels: Record<AutonomyLevel, string> = {
   controlled: "Контрольований",
   autonomous: "Автономний",
 };
+
+type IntegrationDefinition = {
+  id: IntegrationId | "tax";
+  name: string;
+  description: string;
+  capabilities: string[];
+  access: string;
+  providers: string[];
+  metadata: string[];
+  eventText: string;
+  icon: typeof Landmark;
+  comingSoon?: boolean;
+};
+
+const integrationCatalog: IntegrationDefinition[] = [
+  { id: "bank", name: "Банківські рахунки", description: "Доступ до транзакцій для звірки платежів, пошуку невідповідностей та контролю руху коштів.", capabilities: ["транзакції", "баланс", "платежі", "звірка"], access: "Тільки перегляд + аналіз", providers: ["Mono Business", "PrivatBank Business", "Інший банк"], metadata: ["2 рахунки", "846 транзакцій доступно", "Остання синхронізація: щойно"], eventText: "AI-бухгалтер отримав доступ до банківських даних", icon: Landmark },
+  { id: "accounting", name: "Бухгалтерська система", description: "Рахунки, проводки, контрагенти та фінансові записи для щоденних бухгалтерських задач.", capabilities: ["рахунки", "проводки", "контрагенти", "закриття місяця"], access: "Аналіз + підготовка змін", providers: ["BAS Demo", "QuickBooks Demo", "Інша система"], metadata: ["1 компанія", "214 рахунків", "38 контрагентів"], eventText: "Підключено джерело: Бухгалтерська система", icon: BookOpen },
+  { id: "documents", name: "Документи", description: "Рахунки, акти, договори та інші фінансові документи, які AI може перевіряти під час роботи.", capabilities: ["рахунки", "акти", "договори", "підтвердні документи"], access: "Перегляд + аналіз", providers: ["Google Drive Demo", "Dropbox Demo", "Локальне сховище"], metadata: ["127 документів", "24 рахунки", "18 договорів"], eventText: "Підключено джерело: Документи", icon: Files },
+  { id: "email", name: "Email", description: "Вхідні фінансові повідомлення, рахунки та листування з клієнтами й постачальниками.", capabilities: ["вхідні листи", "вкладення", "рахунки", "повідомлення"], access: "Перегляд + підготовка відповіді", providers: ["Gmail Demo", "Outlook Demo", "Інша пошта"], metadata: ["436 повідомлень", "62 фінансові вкладення"], eventText: "Підключено джерело: Email", icon: Mail },
+  { id: "crm", name: "CRM", description: "Дані про клієнтів, угоди та прострочені оплати для фінансового контролю.", capabilities: ["клієнти", "угоди", "рахунки", "прострочені оплати"], access: "Перегляд + аналіз", providers: ["HubSpot Demo", "Pipedrive Demo", "Інша CRM"], metadata: ["89 клієнтів", "14 прострочених оплат"], eventText: "Підключено джерело: CRM", icon: Database },
+  { id: "tax", name: "Податкова звітність", description: "Дані, необхідні для підготовки та перевірки податкових задач.", capabilities: ["декларації", "зобов’язання", "строки", "перевірка"], access: "Недоступно", providers: [], metadata: [], eventText: "", icon: Building2, comingSoon: true },
+];
 
 function Identity({ color = "blue", size = "md" }: { color?: string; size?: "sm" | "md" | "lg" }) {
   return <div className={`identity identity-${color} identity-${size}`} aria-hidden="true"><i /><i /><i /></div>;
@@ -120,7 +143,7 @@ function CollaborationChain() {
 
 function Dashboard() {
   const router = useRouter();
-  const { approved, createdEmployee } = useWorkforce();
+  const { approved, createdEmployee, integrations } = useWorkforce();
   const officeWorkers = [
     { ...workers[0], status: "ПРАЦЮЄ", objective: "Готує закриття серпня", action: "Проаналізовано 48 транзакцій" },
     { ...workers[1], status: "ПЕРЕВІРЯЄ", objective: "Податкові зобов’язання за вересень", progress: 81, action: "Виявлено 2 найближчі строки" },
@@ -143,8 +166,9 @@ function Dashboard() {
     ...(createdEmployee ? [
       { time: createdEmployee.createdAt, actor: createdEmployee.name, text: "Приєднався до команди й готовий до роботи.", kind: "AI ACTION" },
     ] : []),
+    ...integrations.map(integration => ({ time: integration.connectedAt, actor: "AI-бухгалтер", text: integrationCatalog.find(item => item.id === integration.id)?.eventText || "Підключено робоче джерело", kind: "DEMO CONNECTION" })),
   ];
-  const activityKindLabels = { "AI ACTION": "ДІЯ AI", HANDOFF: "ПЕРЕДАЧА", "HUMAN ACTION": "ДІЯ ЛЮДИНИ" } as const;
+  const activityKindLabels = { "AI ACTION": "ДІЯ AI", HANDOFF: "ПЕРЕДАЧА", "HUMAN ACTION": "ДІЯ ЛЮДИНИ", "DEMO CONNECTION": "DEMO CONNECTION" } as const;
   return <Shell path="/office"><div className="page office-page">
     <header className="page-head office-head"><div><p className="eyebrow">ЧЕТВЕР, 4 ВЕРЕСНЯ</p><h1>Доброго ранку, Користувачу.</h1><p>Ваша AI-команда працює.</p></div><div className="summary"><span><b>3</b> працівники працюють</span><i /><span><b>12</b> активних завдань</span><i /><span><b>{approved ? 0 : 1}</b> {approved ? "рішень на погодженні" : "рішення очікує на вас"}</span></div></header>
     <section className="team-focus"><div className="office-section-head"><div><p className="eyebrow">ВАША AI-КОМАНДА</p><h2>Ваша цифрова команда зараз.</h2></div><button className="text-button" onClick={() => router.push("/workforce")}>Переглянути команду <ArrowRight size={15} /></button></div><div className="team-composition">{officeWorkers.map(w => <TeamCell key={w.key} worker={w} />)}</div></section>
@@ -188,31 +212,124 @@ function Workforce() {
   </div></Shell>;
 }
 
+function IntegrationDialog({ definition, action, connection, onClose, onConnect, onDisconnect }: {
+  definition: IntegrationDefinition;
+  action: "connect" | "disconnect";
+  connection?: ConnectedIntegration;
+  onClose: () => void;
+  onConnect: (provider: string) => void;
+  onDisconnect: () => void;
+}) {
+  const [provider, setProvider] = useState(definition.providers[0] || "");
+  const [phase, setPhase] = useState<"select" | "checking" | "configuring" | "connected">("select");
+  const panelRef = useRef<HTMLDivElement>(null);
+  const firstTimer = useRef<number | null>(null);
+  const secondTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    const focusable = () => Array.from(panel?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)') || []);
+    focusable()[0]?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, [onClose]);
+
+  useEffect(() => () => {
+    if (firstTimer.current) window.clearTimeout(firstTimer.current);
+    if (secondTimer.current) window.clearTimeout(secondTimer.current);
+  }, []);
+
+  const createDemoConnection = () => {
+    setPhase("checking");
+    firstTimer.current = window.setTimeout(() => setPhase("configuring"), 450);
+    secondTimer.current = window.setTimeout(() => {
+      onConnect(provider);
+      setPhase("connected");
+    }, 950);
+  };
+
+  if (action === "disconnect") return <div className="integration-overlay" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><div className="integration-dialog disconnect-dialog" ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="disconnect-title"><button className="dialog-close" onClick={onClose} aria-label="Закрити"><X size={18} /></button><span className="dialog-icon"><Unplug size={20} /></span><p className="eyebrow">КОНТРОЛЬ ДОСТУПУ</p><h2 id="disconnect-title">Відключити цю систему?</h2><p>AI-бухгалтер більше не використовуватиме це джерело даних у демо.</p><div className="dialog-connection-name"><b>{definition.name}</b><span>{connection?.provider}</span></div><footer><button className="secondary" onClick={onClose}>Скасувати</button><button className="primary disconnect-action" onClick={onDisconnect}>Відключити</button></footer></div></div>;
+
+  const phaseIndex = phase === "select" ? 0 : phase === "checking" ? 1 : phase === "configuring" ? 2 : 3;
+  return <div className="integration-overlay" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><div className="integration-dialog" ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="connection-title"><button className="dialog-close" onClick={onClose} aria-label="Закрити"><X size={18} /></button><p className="eyebrow">ТЕСТОВЕ ПІДКЛЮЧЕННЯ</p><h2 id="connection-title">Підключити {definition.name.toLowerCase()}</h2><p className="dialog-lede">У демо буде створено тестове підключення без доступу до реальних даних зовнішніх систем.</p>
+    {phase === "select" ? <><fieldset className="provider-options"><legend>Оберіть demo-провайдера</legend>{definition.providers.map(item => <label key={item}><input type="radio" name="provider" value={item} checked={provider === item} onChange={() => setProvider(item)} /><span className="radio-control">{provider === item && <i />}</span><b>{item}</b></label>)}</fieldset><div className="demo-boundary"><ShieldCheck size={17} /><p><b>Лише локальна імітація.</b><br />Жодна авторизація, API або реальні бізнес-дані не використовуються.</p></div><footer><button className="secondary" onClick={onClose}>Скасувати</button><button className="primary" onClick={createDemoConnection}>Створити demo-підключення</button></footer></> : <div className="connection-progress" aria-live="polite"><div className={phaseIndex > 1 ? "done" : phaseIndex === 1 ? "active" : ""}><span>{phaseIndex > 1 ? <Check size={13} /> : "01"}</span><p>Перевіряємо demo-доступ…</p></div><div className={phaseIndex > 2 ? "done" : phaseIndex === 2 ? "active" : ""}><span>{phaseIndex > 2 ? <Check size={13} /> : "02"}</span><p>Налаштовуємо джерело даних…</p></div><div className={phaseIndex === 3 ? "done" : ""}><span>{phaseIndex === 3 ? <Check size={13} /> : "03"}</span><p>Підключено</p></div>{phase === "connected" && <motion.div className="connection-complete" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}><b>{provider}</b><span>Підключено · demo</span><button className="primary" onClick={onClose}>Готово</button></motion.div>}</div>}
+  </div></div>;
+}
+
+function IntegrationsPanel() {
+  const { integrations, connectIntegration, disconnectIntegration } = useWorkforce();
+  const [dialog, setDialog] = useState<{ definition: IntegrationDefinition; action: "connect" | "disconnect" } | null>(null);
+  const connectedCount = integrations.length;
+
+  const connect = (definition: IntegrationDefinition, provider: string) => {
+    if (definition.id === "tax") return;
+    connectIntegration({ id: definition.id, status: "connected", provider, connectedAt: new Date().toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" }), metadata: definition.metadata });
+  };
+
+  return <section className="integrations-panel" id="connections" aria-labelledby="connections-heading">
+    <header><div><p className="eyebrow">ПІДКЛЮЧЕННЯ</p><h2 id="connections-heading">Робочі системи</h2><p>Підключіть джерела даних, з якими AI-бухгалтер працюватиме під час виконання задач.</p></div><div className="integration-count"><b>{connectedCount}</b><span>систем<br />підключено</span></div></header>
+    <div className="demo-notice"><ShieldCheck size={17} /><p>У демо підключення імітуються локально. Реальні інтеграції потребуватимуть окремої авторизації та API-доступу.</p></div>
+    <div className="integration-grid">{integrationCatalog.map(definition => {
+      const connection = definition.id === "tax" ? undefined : integrations.find(item => item.id === definition.id);
+      const Icon = definition.icon;
+      return <article className={`integration-card ${connection ? "connected" : ""} ${definition.comingSoon ? "unavailable" : ""}`} key={definition.id}><div className="integration-card-top"><span className="connector-icon"><Icon size={19} /></span><span className={`connector-status ${connection ? "is-connected" : ""}`}>{connection ? "Підключено · demo" : definition.comingSoon ? "Скоро" : "Не підключено"}</span></div><h3>{definition.name}</h3><p>{definition.description}</p><ul className="connector-capabilities">{definition.capabilities.map(item => <li key={item}>{item}</li>)}</ul>{connection && <><div className="connector-data"><b>{connection.provider}</b>{connection.metadata.map(item => <span key={item}>{item}</span>)}</div><div className="access-level"><span>РІВЕНЬ ДОСТУПУ</span><b>{definition.access}</b><small>Виконання зовнішніх дій недоступне.</small></div></>}<footer>{definition.comingSoon ? <button className="secondary" disabled>Недоступно в демо</button> : connection ? <button className="secondary" onClick={() => setDialog({ definition, action: "disconnect" })}>Відключити</button> : <button className="primary" onClick={() => setDialog({ definition, action: "connect" })}>Підключити</button>}</footer></article>;
+    })}</div>
+    <aside className="access-control"><ShieldCheck size={21} /><div><h3>Контроль доступу</h3><p>AI використовує лише підключені джерела та працює в межах заданого рівня доступу. Критичні дії залишаються під контролем людини.</p></div><dl><div><dt>{connectedCount}</dt><dd>систем підключено</dd></div><div><dt>0</dt><dd>систем із повним доступом</dd></div></dl></aside>
+    {dialog && <IntegrationDialog definition={dialog.definition} action={dialog.action} connection={dialog.definition.id === "tax" ? undefined : integrations.find(item => item.id === dialog.definition.id)} onClose={() => setDialog(null)} onConnect={provider => connect(dialog.definition, provider)} onDisconnect={() => { if (dialog.definition.id !== "tax") disconnectIntegration(dialog.definition.id); setDialog(null); }} />}
+  </section>;
+}
+
 function Workspace({ employee = "accountant" }: { employee?: string }) {
   const router = useRouter();
-  const { createdEmployee } = useWorkforce();
+  const { createdEmployee, integrations } = useWorkforce();
   const w = workers.find(x => x.key === employee) || workers[0];
   const hiredEmployee = employee === "accountant" ? createdEmployee : null;
   const [open, setOpen] = useState("work");
-  const detailSections = [["queue", ListChecks, "ЧЕРГА ЗАВДАНЬ"], ["activity", Activity, "ОСТАННЯ АКТИВНІСТЬ"], ["knowledge", FileCheck2, "ЗНАННЯ"], ["permissions", LockKeyhole, "ДОЗВОЛИ"], ["systems", Settings2, "ПІДКЛЮЧЕНІ СИСТЕМИ"]] as const;
+  const detailSections = [["queue", ListChecks, "ЧЕРГА ЗАВДАНЬ"], ["activity", Activity, "ОСТАННЯ АКТИВНІСТЬ"], ["knowledge", FileCheck2, "ЗНАННЯ"], ["permissions", LockKeyhole, "ДОЗВОЛИ"]] as const;
+  const readiness = integrations.length === 0 ? "Потрібні підключення" : integrations.length < 3 ? "Частково готовий" : "Готовий до роботи";
 
   const hiredDetails = (key: string) => {
     if (!hiredEmployee) return null;
     if (key === "queue") return <div className="workspace-detail"><small>ПРИЗНАЧЕНІ ОБОВ’ЯЗКИ</small><ul>{hiredEmployee.responsibilities.map(item => <li key={item}>{item}</li>)}</ul></div>;
     if (key === "activity") return <div className="workspace-detail"><small>ОСТАННЯ ПОДІЯ</small><b>AI-бухгалтер приєднався до команди</b><p>Сьогодні о {hiredEmployee.createdAt}</p></div>;
     if (key === "permissions") return <div className="workspace-detail"><small>ПРАВИЛА ПОГОДЖЕННЯ</small><ul>{hiredEmployee.approvalRules.map(item => <li key={item}>{item}</li>)}</ul><p>Ліміт без погодження: <b>{hiredEmployee.approvalLimit}</b></p></div>;
-    if (key === "knowledge") return <div className="workspace-detail"><small>ДЖЕРЕЛА ЗНАНЬ</small><b>Базовий фінансовий контекст</b><p>Демо-джерела готові до підключення.</p></div>;
-    return <div className="workspace-detail"><small>ПІДКЛЮЧЕННЯ</small><b>Системи ще не підключені</b><p>Їх можна додати пізніше в налаштуваннях працівника.</p></div>;
+    return <div className="workspace-detail"><small>ДЖЕРЕЛА ЗНАНЬ</small><b>Базовий фінансовий контекст</b><p>Демо-джерела готові до підключення.</p></div>;
   };
 
   return <Shell path="/workforce"><div className="page workspace-page">
     <button className="back" onClick={() => router.push("/workforce")}><ArrowLeft size={16} /> AI-команда</button>
     <header className="workspace-hero"><Identity color={w.color} size="lg" /><div><p className="eyebrow">РОБОЧИЙ ПРОСТІР AI-ПРАЦІВНИКА</p><h1>{w.name}</h1><p>{w.role}</p></div><Status>{hiredEmployee ? "АКТИВНИЙ" : "ПРАЦЮЄ"}</Status><div className="workspace-objective"><span>{hiredEmployee ? "СТАТУС" : "ПОТОЧНА ЦІЛЬ"}</span><h2>{hiredEmployee ? "Готовий до призначених завдань" : w.objective}</h2><div className="progress"><i style={{ width: hiredEmployee ? "100%" : `${w.progress}%` }} /></div><b>{hiredEmployee ? "100%" : `${w.progress}%`}</b><p><i /> {hiredEmployee ? `${autonomyLabels[hiredEmployee.autonomy]} рівень автономності` : "Зараз: очікує на перевірку документів."}</p></div></header>
+    <div className="workspace-metrics"><div><span>ПІДКЛЮЧЕНІ СИСТЕМИ</span><b>{integrations.length}</b></div><div><span>ГОТОВНІСТЬ ДО РОБОТИ</span><b>{readiness}</b></div><div><span>ПОВНИЙ ДОСТУП</span><b>0 систем</b></div></div>
+    {hiredEmployee && integrations.length === 0 && <aside className="first-connection-card"><div><p className="eyebrow">НАСТУПНИЙ КРОК</p><h2>Дайте AI-бухгалтеру робочі дані</h2><p>Підключіть хоча б одну систему, щоб він міг виконувати реальні робочі сценарії в демо.</p></div><button className="primary" onClick={() => document.getElementById("connections")?.scrollIntoView({ behavior: "smooth" })}>Підключити першу систему <ArrowDown size={15} /></button></aside>}
     <section className="workspace-sections">
       <button className={open === "work" ? "open" : ""} onClick={() => setOpen(open === "work" ? "" : "work")} aria-expanded={open === "work"}><span><CircleGauge size={18} /> ПОТОЧНА РОБОТА</span><ChevronDown size={17} /></button>
       {open === "work" && <motion.div className="disclosure" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}><div><small>{hiredEmployee ? "ГОТОВИЙ ДО РОБОТИ" : "АКТИВНЕ ЗАВДАННЯ"}</small><b>{hiredEmployee ? autonomyLabels[hiredEmployee.autonomy] : "Підготувати клієнта до закриття місяця"}</b><p>{hiredEmployee ? `${hiredEmployee.responsibilities.length} обов’язків · ${hiredEmployee.approvalRules.length} правил погодження` : "Фахівець із документів перевіряє первинні матеріали."}</p></div>{!hiredEmployee && <button className="secondary" onClick={() => router.push("/tasks/monthly-close")}>Відкрити завдання</button>}</motion.div>}
       {detailSections.map(([key, Icon, label]) => <div className="workspace-section" key={key}><button className={open === key ? "open" : ""} onClick={() => setOpen(open === key ? "" : key)} aria-expanded={open === key}><span><Icon size={18} /> {label}</span><ChevronDown size={17} /></button>{open === key && hiredEmployee && <motion.div className="disclosure" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>{hiredDetails(key)}</motion.div>}</div>)}
     </section>
+    <IntegrationsPanel />
   </div></Shell>;
 }
 
@@ -257,7 +374,7 @@ function CreateEmployee() {
 
   if (launchPhase === "loading") return <Shell path="/workforce"><div className="hire-result"><motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}><span className="sending-mark"><i /><i /></span><p>Налаштовуємо робоче середовище…</p><small>Застосовуємо обов’язки, автономність і правила погодження.</small></motion.div></div></Shell>;
 
-  if (launchPhase === "success") return <Shell path="/workforce"><div className="page hire-success"><motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}><span className="approved-mark"><Check size={28} /></span><p className="eyebrow">AI-БУХГАЛТЕР ГОТОВИЙ</p><h1>AI-бухгалтер приєднався<br />до вашої команди</h1><p className="hire-success-copy">Він уже готовий виконувати призначені задачі та передаватиме вам критичні рішення на погодження.</p><div className="hire-success-summary"><span><b>{responsibilities.length}</b> обов’язків</span><span><b>{autonomyLabels[autonomy]}</b> рівень автономності</span><span><b>{approvalRules.length}</b> правила погодження</span><span><b>Активний</b> статус</span></div><div className="hire-actions"><button className="primary" onClick={() => router.push("/office")}>Перейти до AI-офісу <ArrowRight size={16} /></button><button className="secondary" onClick={() => router.push("/workforce/accountant")}>Переглянути працівника</button></div></motion.div></div></Shell>;
+  if (launchPhase === "success") return <Shell path="/workforce"><div className="page hire-success"><motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}><span className="approved-mark"><Check size={28} /></span><p className="eyebrow">AI-БУХГАЛТЕР ГОТОВИЙ</p><h1>AI-бухгалтер приєднався<br />до вашої команди</h1><p className="hire-success-copy">Він уже готовий виконувати призначені задачі та передаватиме вам критичні рішення на погодження.</p><div className="hire-success-summary"><span><b>{responsibilities.length}</b> обов’язків</span><span><b>{autonomyLabels[autonomy]}</b> рівень автономності</span><span><b>{approvalRules.length}</b> правила погодження</span><span><b>Активний</b> статус</span></div><div className="hire-actions"><button className="primary" onClick={() => router.push("/office")}>Перейти до AI-офісу <ArrowRight size={16} /></button><button className="secondary" onClick={() => router.push("/workforce/accountant#connections")}>Підключити робочі системи</button></div></motion.div></div></Shell>;
 
   return <Shell path="/workforce"><div className="page create-page hire-flow">
     <button className="back" onClick={() => step === 1 ? router.push("/workforce") : moveTo(step - 1)}><ArrowLeft size={16} /> {step === 1 ? "AI-команда" : "Назад"}</button>

@@ -14,21 +14,36 @@ export type CreatedEmployee = {
   createdAt: string;
 };
 
+export type IntegrationId = "bank" | "accounting" | "documents" | "email" | "crm";
+
+export type ConnectedIntegration = {
+  id: IntegrationId;
+  status: "connected";
+  provider: string;
+  connectedAt: string;
+  metadata: string[];
+};
+
 type WorkforceState = {
   approved: boolean;
   createdEmployee: CreatedEmployee | null;
+  integrations: ConnectedIntegration[];
   approve: () => void;
+  connectIntegration: (integration: ConnectedIntegration) => void;
+  disconnectIntegration: (id: IntegrationId) => void;
   hireEmployee: (employee: CreatedEmployee) => void;
   reset: () => void;
 };
 
 const employeeStorageKey = "ai-workforce-created-accountant-v1";
+const integrationsStorageKey = "ai-workforce-integrations-v1";
 
 const WorkforceContext = createContext<WorkforceState | null>(null);
 
 export function WorkforceProvider({ children }: { children: React.ReactNode }) {
   const [approved, setApproved] = useState(false);
   const [createdEmployee, setCreatedEmployee] = useState<CreatedEmployee | null>(null);
+  const [integrations, setIntegrations] = useState<ConnectedIntegration[]>([]);
 
   useEffect(() => {
     try {
@@ -36,6 +51,18 @@ export function WorkforceProvider({ children }: { children: React.ReactNode }) {
       if (!storedEmployee) return;
       const parsedEmployee = JSON.parse(storedEmployee) as CreatedEmployee;
       const restoreTimer = window.setTimeout(() => setCreatedEmployee(parsedEmployee), 0);
+      return () => window.clearTimeout(restoreTimer);
+    } catch {
+      // The demo remains usable when browser storage is unavailable.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const storedIntegrations = window.localStorage.getItem(integrationsStorageKey);
+      if (!storedIntegrations) return;
+      const parsedIntegrations = JSON.parse(storedIntegrations) as ConnectedIntegration[];
+      const restoreTimer = window.setTimeout(() => setIntegrations(parsedIntegrations), 0);
       return () => window.clearTimeout(restoreTimer);
     } catch {
       // The demo remains usable when browser storage is unavailable.
@@ -59,7 +86,24 @@ export function WorkforceProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  return <WorkforceContext.Provider value={{ approved, createdEmployee, approve, hireEmployee, reset }}>{children}</WorkforceContext.Provider>;
+  const saveIntegrations = (nextIntegrations: ConnectedIntegration[]) => {
+    setIntegrations(nextIntegrations);
+    try {
+      window.localStorage.setItem(integrationsStorageKey, JSON.stringify(nextIntegrations));
+    } catch {
+      // Keep the current-session state even when persistence is unavailable.
+    }
+  };
+
+  const connectIntegration = (integration: ConnectedIntegration) => {
+    saveIntegrations([...integrations.filter(item => item.id !== integration.id), integration]);
+  };
+
+  const disconnectIntegration = (id: IntegrationId) => {
+    saveIntegrations(integrations.filter(item => item.id !== id));
+  };
+
+  return <WorkforceContext.Provider value={{ approved, createdEmployee, integrations, approve, connectIntegration, disconnectIntegration, hireEmployee, reset }}>{children}</WorkforceContext.Provider>;
 }
 
 export function useWorkforce() {
