@@ -349,7 +349,7 @@ function OfficeGreeting() {
     const updateClock = () => {
       const now = new Date();
       const hour = now.getHours();
-      const greeting = hour < 12 ? "Доброго ранку" : hour < 18 ? "Добрий день" : "Добрий вечір";
+      const greeting = hour >= 5 && hour < 12 ? "Доброго ранку" : hour < 18 ? "Добрий день" : "Добрий вечір";
       const date = now
         .toLocaleDateString("uk-UA", { weekday: "long", day: "numeric", month: "long" })
         .toLocaleUpperCase("uk-UA");
@@ -658,7 +658,7 @@ function ExecutiveOverview() {
             <div>
               <span>ПОГОДЖЕННЯ</span>
               <h3>Запит документів для закриття місяця</h3>
-              <p>Клієнтська комунікація очікує дозволу на надсилання.</p>
+              <p>AI-бухгалтер очікує дозволу на надсилання.</p>
               <button className="text-button" onClick={() => router.push("/approvals/monthly-close")}>
                 Переглянути <ArrowRight size={14} />
               </button>
@@ -926,8 +926,8 @@ function Dashboard() {
 const baseSteps = [
   ["AI-БУХГАЛТЕР", "Проаналізував бухгалтерські дані", "Перевірено 48 транзакцій", "complete", "blue"],
   ["AI-БУХГАЛТЕР", "Виявив відсутні документи", "Потрібні 3 рахунки", "complete", "blue"],
-  ["ФАХІВЕЦЬ ІЗ ДОКУМЕНТІВ", "Перевірив наявні документи", "Виявлено 3 відсутні рахунки", "complete", "indigo"],
-  ["КЛІЄНТСЬКА КОМУНІКАЦІЯ", "Підготувала запит документів", "Готовий до надсилання", "complete", "green"],
+  ["AI-БУХГАЛТЕР", "Перевірив наявні документи", "Виявлено 3 відсутні рахунки", "complete", "blue"],
+  ["AI-БУХГАЛТЕР", "Підготував запит документів", "Готовий до надсилання", "complete", "blue"],
 ];
 
 function MonthlyCloseTask() {
@@ -1095,10 +1095,10 @@ function MonthlyCloseApproval() {
         <div className="approval-layout">
           <section className="proposal">
             <div className="proposal-by">
-              <Identity color="green" />
+              <Identity color="blue" />
               <div>
                 <small>ЗАПРОПОНОВАНО</small>
-                <b>Клієнтська комунікація</b>
+                <b>AI-бухгалтер</b>
               </div>
               <Status tone="waiting">ОЧІКУЄ ВАШОГО РІШЕННЯ</Status>
             </div>
