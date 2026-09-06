@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 export type AutonomyLevel = "assistant" | "controlled" | "autonomous";
 export type EmployeeId = "accountant" | "sales-assistant";
+export type DemoMode = "working" | "clean" | "manual";
 
 export type CreatedEmployee = {
   id: EmployeeId;
@@ -82,6 +83,7 @@ export type CollaborationState = {
 
 type WorkforceState = {
   approved: boolean;
+  demoMode: DemoMode;
   employees: CreatedEmployee[];
   createdEmployee: CreatedEmployee | null;
   integrations: ConnectedIntegration[];
@@ -104,8 +106,11 @@ const employeesStorageKey = "ai-workforce-employees-v2";
 const integrationsStorageKey = "ai-workforce-integrations-v1";
 const reconciliationStorageKey = "ai-workforce-reconciliation-v1";
 const collaborationStorageKey = "ai-workforce-collaboration-v1";
+const monthlyApprovalStorageKey = "ai-workforce-monthly-approved-v1";
+const demoInitializationStorageKey = "ai-workforce-demo-initialized-v1";
 
 const demoTime = () => new Date().toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
+const demoTimeAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
 
 const getDiscoveredTasks = (primaryStatus: string): DiscoveredTask[] => [
   { id: "reconciliation", title: "Звірити банківські транзакції", detail: "12 транзакцій потребують звірки", source: "Банківські рахунки + Бухгалтерська система", priority: "Середній", status: primaryStatus },
@@ -135,10 +140,75 @@ const createCollaboration = (): CollaborationState => {
   };
 };
 
+const createDefaultEmployees = (): CreatedEmployee[] => [
+  {
+    id: "accountant",
+    name: "AI-бухгалтер",
+    role: "Фінанси та бухгалтерія",
+    responsibilities: ["Звіряти банківські транзакції", "Контролювати рахунки та платежі", "Готувати закриття місяця", "Шукати фінансові невідповідності", "Готувати фінансові звіти"],
+    autonomy: "controlled",
+    approvalRules: ["Проведення або ініціювання платежів", "Податкові дії", "Незвичні або підозрілі транзакції", "Зміни фінансових даних", "Надсилання документів клієнтам"],
+    approvalLimit: "10 000 ₴",
+    createdAt: demoTimeAgo(3 * 24 * 60),
+  },
+  {
+    id: "sales-assistant",
+    name: "AI-асистент з продажів",
+    role: "Продажі та клієнтська комунікація",
+    responsibilities: ["Контролювати прострочені оплати", "Аналізувати CRM та історію клієнта", "Готувати follow-up повідомлення", "Перевіряти останні контакти з клієнтом", "Готувати короткі підсумки перед контактом із клієнтом"],
+    autonomy: "controlled",
+    approvalRules: ["Надсилання повідомлень клієнтам", "Зміна статусу угоди", "Знижки або спеціальні умови", "Надсилання комерційних матеріалів"],
+    approvalLimit: "Не застосовується",
+    createdAt: demoTimeAgo(2 * 24 * 60),
+  },
+];
+
+const createDefaultIntegrations = (): ConnectedIntegration[] => {
+  const connectedAt = demoTimeAgo(36);
+  return [
+    { id: "bank", employeeId: "accountant", status: "connected", provider: "Mono Business", connectedAt, metadata: ["2 рахунки", "846 транзакцій доступно", "Остання синхронізація: щойно"] },
+    { id: "accounting", employeeId: "accountant", status: "connected", provider: "BAS Demo", connectedAt, metadata: ["1 компанія", "214 рахунків", "38 контрагентів"] },
+    { id: "documents", employeeId: "accountant", status: "connected", provider: "Google Drive Demo", connectedAt, metadata: ["127 документів", "24 рахунки", "18 договорів"] },
+    { id: "crm", employeeId: "sales-assistant", status: "connected", provider: "HubSpot Demo", connectedAt, metadata: ["89 клієнтів", "14 прострочених оплат"] },
+    { id: "email", employeeId: "sales-assistant", status: "connected", provider: "Gmail Demo", connectedAt, metadata: ["436 повідомлень", "62 фінансові вкладення"] },
+  ];
+};
+
+const createDefaultReconciliation = (): ReconciliationState => ({
+  status: "completed",
+  exceptionStatus: "approved",
+  humanDecision: "approved",
+  discoveredAt: demoTimeAgo(38),
+  startedAt: demoTimeAgo(35),
+  completedAt: demoTimeAgo(15),
+  discoveredTasks: getDiscoveredTasks("Завершено"),
+  activities: [
+    { id: "monthly-close-progress", time: demoTimeAgo(31), text: "AI-бухгалтер продовжив закриття серпня", detail: "Перевіряє документи та фінансові записи", kind: "AI ACTION" },
+    { id: "human-decision", time: demoTimeAgo(23), text: "Користувач погодив фінансову невідповідність", detail: "Критичне рішення прийнято людиною", kind: "HUMAN ACTION" },
+    { id: "reconciliation-completed", time: demoTimeAgo(15), text: "AI-бухгалтер завершив звірку 12 транзакцій", detail: "11 автоматично · 1 рішення людини", kind: "AI ACTION" },
+  ],
+});
+
+const createDefaultCollaboration = (): CollaborationState => ({
+  status: "approval",
+  approvalStatus: "pending",
+  revisionReason: null,
+  draftVersion: 1,
+  startedAt: demoTimeAgo(12),
+  completedAt: null,
+  activities: [
+    { id: "overdue-detected", time: demoTimeAgo(12), actor: "AI-бухгалтер", text: "Виявив прострочену оплату", detail: "ТОВ «Орбіта» · 48 000 ₴ · 12 днів", kind: "AI ACTION" },
+    { id: "sales-handoff", time: demoTimeAgo(10), actor: "AI-бухгалтер → AI-асистент з продажів", text: "Передав контекст простроченої оплати", detail: "Подальша дія потребує роботи з клієнтом", kind: "HANDOFF" },
+    { id: "sales-context-reviewed", time: demoTimeAgo(6), actor: "AI-асистент з продажів", text: "Перевірив CRM та історію комунікації", detail: "Клієнт активний · останній контакт 6 днів тому", kind: "AI ACTION" },
+    { id: "sales-approval-request", time: demoTimeAgo(4), actor: "AI-асистент з продажів → Людина", text: "Підготував follow-up для ТОВ «Орбіта»", detail: "Зовнішня комунікація потребує погодження людини", kind: "HANDOFF" },
+  ],
+});
+
 const WorkforceContext = createContext<WorkforceState | null>(null);
 
 export function WorkforceProvider({ children }: { children: React.ReactNode }) {
   const [approved, setApproved] = useState(false);
+  const [demoMode, setDemoMode] = useState<DemoMode>("manual");
   const [employees, setEmployees] = useState<CreatedEmployee[]>([]);
   const [integrations, setIntegrations] = useState<ConnectedIntegration[]>([]);
   const [reconciliation, setReconciliation] = useState<ReconciliationState | null>(null);
@@ -159,34 +229,74 @@ export function WorkforceProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    let nextApproved = true;
+    let nextMode: DemoMode = "working";
+    let nextEmployees = createDefaultEmployees();
+    let nextIntegrations = createDefaultIntegrations();
+    let nextReconciliation: ReconciliationState | null = createDefaultReconciliation();
+    let nextCollaboration: CollaborationState | null = createDefaultCollaboration();
+
     try {
       const storedEmployees = window.localStorage.getItem(employeesStorageKey);
       const legacyEmployee = window.localStorage.getItem(legacyEmployeeStorageKey);
-      let restoredEmployees: CreatedEmployee[] = storedEmployees ? JSON.parse(storedEmployees) : [];
-      if (!restoredEmployees.length && legacyEmployee) {
-        const legacy = JSON.parse(legacyEmployee) as Omit<CreatedEmployee, "id">;
-        restoredEmployees = [{ ...legacy, id: "accountant" }];
-        window.localStorage.setItem(employeesStorageKey, JSON.stringify(restoredEmployees));
-      }
+      const storedDemoMode = window.localStorage.getItem(demoInitializationStorageKey) as DemoMode | null;
       const storedIntegrations = window.localStorage.getItem(integrationsStorageKey);
-      const restoredIntegrations: ConnectedIntegration[] = storedIntegrations
-        ? (JSON.parse(storedIntegrations) as Array<Omit<ConnectedIntegration, "employeeId"> & { employeeId?: EmployeeId }>).map((item) => ({ ...item, employeeId: item.employeeId || "accountant" }))
-        : [];
-      if (storedIntegrations) window.localStorage.setItem(integrationsStorageKey, JSON.stringify(restoredIntegrations));
       const storedReconciliation = window.localStorage.getItem(reconciliationStorageKey);
       const storedCollaboration = window.localStorage.getItem(collaborationStorageKey);
-      // Browser storage is the external source of truth for this local-only demo.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setEmployees(restoredEmployees);
-      setIntegrations(restoredIntegrations);
-      setReconciliation(storedReconciliation ? JSON.parse(storedReconciliation) : null);
-      setCollaboration(storedCollaboration ? JSON.parse(storedCollaboration) : null);
+      const storedApproved = window.localStorage.getItem(monthlyApprovalStorageKey);
+      const hasExistingState = Boolean(storedEmployees || legacyEmployee || storedIntegrations || storedReconciliation || storedCollaboration || storedApproved);
+
+      if (!storedDemoMode && !hasExistingState) {
+        const defaultEmployees = createDefaultEmployees();
+        const defaultIntegrations = createDefaultIntegrations();
+        const defaultReconciliation = createDefaultReconciliation();
+        const defaultCollaboration = createDefaultCollaboration();
+        window.localStorage.setItem(employeesStorageKey, JSON.stringify(defaultEmployees));
+        window.localStorage.setItem(integrationsStorageKey, JSON.stringify(defaultIntegrations));
+        window.localStorage.setItem(reconciliationStorageKey, JSON.stringify(defaultReconciliation));
+        window.localStorage.setItem(collaborationStorageKey, JSON.stringify(defaultCollaboration));
+        window.localStorage.setItem(monthlyApprovalStorageKey, "true");
+        window.localStorage.setItem(demoInitializationStorageKey, "working");
+      } else {
+        let restoredEmployees: CreatedEmployee[] = storedEmployees ? JSON.parse(storedEmployees) : [];
+        if (!restoredEmployees.length && legacyEmployee) {
+          const legacy = JSON.parse(legacyEmployee) as Omit<CreatedEmployee, "id">;
+          restoredEmployees = [{ ...legacy, id: "accountant" }];
+          window.localStorage.setItem(employeesStorageKey, JSON.stringify(restoredEmployees));
+        }
+        const restoredIntegrations: ConnectedIntegration[] = storedIntegrations
+          ? (JSON.parse(storedIntegrations) as Array<Omit<ConnectedIntegration, "employeeId"> & { employeeId?: EmployeeId }>).map((item) => ({ ...item, employeeId: item.employeeId || "accountant" }))
+          : [];
+        if (storedIntegrations) window.localStorage.setItem(integrationsStorageKey, JSON.stringify(restoredIntegrations));
+        const restoredMode = storedDemoMode || "manual";
+        if (!storedDemoMode) window.localStorage.setItem(demoInitializationStorageKey, restoredMode);
+        nextApproved = storedApproved === "true";
+        nextMode = restoredMode;
+        nextEmployees = restoredEmployees;
+        nextIntegrations = restoredIntegrations;
+        nextReconciliation = storedReconciliation ? JSON.parse(storedReconciliation) : null;
+        nextCollaboration = storedCollaboration ? JSON.parse(storedCollaboration) : null;
+      }
     } catch {
-      // The demo remains usable when browser storage is unavailable.
+      // The populated demo remains usable when browser storage is unavailable.
     }
-    const timer = window.setTimeout(() => setHydrated(true), 0);
+    const timer = window.setTimeout(() => {
+      setApproved(nextApproved);
+      setDemoMode(nextMode);
+      setEmployees(nextEmployees);
+      setIntegrations(nextIntegrations);
+      setReconciliation(nextReconciliation);
+      setCollaboration(nextCollaboration);
+      setHydrated(true);
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  const markManualState = () => {
+    if (demoMode !== "clean") return;
+    setDemoMode("manual");
+    try { window.localStorage.setItem(demoInitializationStorageKey, "manual"); } catch {}
+  };
 
   const accountantIntegrations = integrations.filter((item) => item.employeeId === "accountant");
   const salesIntegrations = integrations.filter((item) => item.employeeId === "sales-assistant");
@@ -255,6 +365,7 @@ export function WorkforceProvider({ children }: { children: React.ReactNode }) {
   }, [collaboration]);
 
   const saveEmployees = (next: CreatedEmployee[]) => {
+    markManualState();
     setEmployees(next);
     try { window.localStorage.setItem(employeesStorageKey, JSON.stringify(next)); } catch {}
   };
@@ -266,6 +377,7 @@ export function WorkforceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const saveIntegrations = (next: ConnectedIntegration[]) => {
+    markManualState();
     setIntegrations(next);
     try { window.localStorage.setItem(integrationsStorageKey, JSON.stringify(next)); } catch {}
   };
@@ -300,17 +412,29 @@ export function WorkforceProvider({ children }: { children: React.ReactNode }) {
   const resetReconciliation = () => { if (!hasReconciliationSources || !createdEmployee) persistReconciliation(null); else persistReconciliation(createReconciliation()); };
 
   const resetDemo = () => {
-    setApproved(false); setEmployees([]); setIntegrations([]); setReconciliation(null); setCollaboration(null);
+    setApproved(false); setDemoMode("clean"); setEmployees([]); setIntegrations([]); setReconciliation(null); setCollaboration(null);
     try {
       window.localStorage.removeItem(legacyEmployeeStorageKey);
       window.localStorage.removeItem(employeesStorageKey);
       window.localStorage.removeItem(integrationsStorageKey);
       window.localStorage.removeItem(reconciliationStorageKey);
       window.localStorage.removeItem(collaborationStorageKey);
+      window.localStorage.removeItem(monthlyApprovalStorageKey);
+      window.localStorage.setItem(demoInitializationStorageKey, "clean");
     } catch {}
   };
 
-  return <WorkforceContext.Provider value={{ approved, employees, createdEmployee, integrations, reconciliation, collaboration, approve: () => setApproved(true), connectIntegration, disconnectIntegration, hireEmployee, decideReconciliation, resetReconciliation, decideCollaboration, requestCollaborationRevision, resetDemo, reset: () => setApproved(false) }}>{children}</WorkforceContext.Provider>;
+  const approveMonthlyClose = () => {
+    setApproved(true);
+    try { window.localStorage.setItem(monthlyApprovalStorageKey, "true"); } catch {}
+  };
+
+  const resetMonthlyClose = () => {
+    setApproved(false);
+    try { window.localStorage.setItem(monthlyApprovalStorageKey, "false"); } catch {}
+  };
+
+  return <WorkforceContext.Provider value={{ approved, demoMode, employees, createdEmployee, integrations, reconciliation, collaboration, approve: approveMonthlyClose, connectIntegration, disconnectIntegration, hireEmployee, decideReconciliation, resetReconciliation, decideCollaboration, requestCollaborationRevision, resetDemo, reset: resetMonthlyClose }}>{children}</WorkforceContext.Provider>;
 }
 
 export function useWorkforce() {

@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Activity, ArrowDown, ArrowLeft, ArrowRight, Check, CheckCircle2, BookOpen, Building2, ChevronDown, CircleGauge, Database, FileCheck2, Files, Landmark, LayoutGrid, ListChecks, LockKeyhole, Mail, Plus, RefreshCcw, Search, ShieldCheck, Unplug, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { type AutonomyLevel, type CollaborationState, type ConnectedIntegration, type CreatedEmployee, type EmployeeId, type IntegrationId, type ReconciliationDecision, type ReconciliationState, useWorkforce } from "./workforce-state";
+import { type AutonomyLevel, type CollaborationState, type ConnectedIntegration, type CreatedEmployee, type DemoMode, type EmployeeId, type IntegrationId, type ReconciliationDecision, type ReconciliationState, useWorkforce } from "./workforce-state";
 
 const workers = [
   {
@@ -421,7 +421,8 @@ function Intro() {
   );
 }
 
-function TeamCell({ worker }: { worker: { key: string; name: string; role: string; color: string; status: string; objective: string; progress: number; action: string } }) {
+function TeamCell({ worker }: { worker: { key: string; name: string; role: string; color: string; status: string; objective: string; progress: number; action: string; href?: string; cta?: string } }) {
+  const router = useRouter();
   const showProgress = worker.key !== "client";
   return (
     <motion.article className="team-cell" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32 }}>
@@ -443,27 +444,29 @@ function TeamCell({ worker }: { worker: { key: string; name: string; role: strin
         <span>ОСТАННЯ ДІЯ</span>
         {worker.action}
       </p>
+      {worker.href && <button className="text-button" onClick={() => router.push(worker.href!)}>{worker.cta || "Переглянути"} <ArrowRight size={14} /></button>}
     </motion.article>
   );
 }
 
-function getExecutiveMetrics(employees: CreatedEmployee[], integrations: ConnectedIntegration[], reconciliation: ReconciliationState | null, collaboration: CollaborationState | null) {
+function getExecutiveMetrics(employees: CreatedEmployee[], integrations: ConnectedIntegration[], reconciliation: ReconciliationState | null, collaboration: CollaborationState | null, demoMode: DemoMode) {
   const hasDecision = reconciliation?.humanDecision === "approved" || reconciliation?.humanDecision === "accepted";
+  const populatedDemo = demoMode === "working";
   return {
     activeEmployees: employees.length,
-    completedTasks: (reconciliation?.status === "completed" ? 1 : 0) + (collaboration?.status === "completed" ? 1 : 0),
-    automatedActions: (reconciliation ? 11 : 0) + (collaboration ? 3 : 0),
+    completedTasks: (populatedDemo ? 3 : 0) + (reconciliation?.status === "completed" ? 1 : 0) + (collaboration?.status === "completed" ? 1 : 0),
+    automatedActions: (populatedDemo ? 4 : 0) + (reconciliation ? 11 : 0) + (collaboration ? 3 : 0) + (collaboration?.status === "completed" ? 1 : 0),
     humanDecisions: (hasDecision ? 1 : 0) + (collaboration?.approvalStatus === "approved" ? 1 : 0),
     pendingDecisions: (reconciliation?.status === "exception" ? 1 : 0) + (collaboration?.status === "approval" ? 1 : 0),
     connectedSystems: integrations.length,
-    estimatedMinutesSaved: reconciliation?.status === "completed" ? 23 : 0,
+    estimatedMinutesSaved: populatedDemo && reconciliation?.status === "completed" ? 47 : reconciliation?.status === "completed" ? 23 : 0,
   };
 }
 
 function ExecutiveOverview() {
   const router = useRouter();
-  const { approved, employees, createdEmployee, integrations, reconciliation, collaboration } = useWorkforce();
-  const metrics = getExecutiveMetrics(employees, integrations, reconciliation, collaboration);
+  const { approved, demoMode, employees, createdEmployee, integrations, reconciliation, collaboration } = useWorkforce();
+  const metrics = getExecutiveMetrics(employees, integrations, reconciliation, collaboration, demoMode);
   const accountantIntegrations = integrations.filter((item) => item.employeeId === "accountant");
   const salesIntegrations = integrations.filter((item) => item.employeeId === "sales-assistant");
   const hasBank = accountantIntegrations.some((item) => item.id === "bank");
@@ -476,7 +479,7 @@ function ExecutiveOverview() {
   const pendingException = reconciliation?.status === "exception";
   const pendingCollaboration = collaboration?.status === "approval";
   const resolvedDecision = reconciliation?.humanDecision === "approved" || reconciliation?.humanDecision === "accepted";
-  const executiveSummary = !employees.length ? "Додайте першого AI-працівника, щоб делегувати регулярну операційну роботу." : !createdEmployee ? "AI-асистент з продажів налаштований для роботи з клієнтськими задачами та контрольованою зовнішньою комунікацією." : collaboration?.status === "completed" ? "AI-бухгалтер виявив прострочену оплату та передав роботу AI-асистенту з продажів. AI-асистент перевірив CRM, підготував follow-up і передав людині лише зовнішню комунікацію на погодження." : collaboration ? "AI-бухгалтер передав фінансовий контекст AI-асистенту з продажів. Спеціалізовані працівники разом готують follow-up клієнту." : !hasRequiredSources ? "AI-бухгалтер налаштований, але ще не має всіх робочих джерел даних." : completed ? "AI-бухгалтер самостійно перевірив 12 транзакцій, автоматично звірив 11 і передав одну невідповідність вам на рішення." : "AI-бухгалтер самостійно виконує фінансові завдання та передає вам лише рішення, які потребують людського контролю.";
+  const executiveSummary = !employees.length ? "Додайте першого AI-працівника, щоб делегувати регулярну операційну роботу." : demoMode === "working" && collaboration?.status === "approval" ? "AI-бухгалтер і AI-асистент з продажів виконують поточні завдання та передають вам лише дії, що потребують рішення людини." : !createdEmployee ? "AI-асистент з продажів налаштований для роботи з клієнтськими задачами та контрольованою зовнішньою комунікацією." : collaboration?.status === "completed" ? "AI-бухгалтер виявив прострочену оплату та передав роботу AI-асистенту з продажів. AI-асистент перевірив CRM, підготував follow-up і передав людині лише зовнішню комунікацію на погодження." : collaboration ? "AI-бухгалтер передав фінансовий контекст AI-асистенту з продажів. Спеціалізовані працівники разом готують follow-up клієнту." : !hasRequiredSources ? "AI-бухгалтер налаштований, але ще не має всіх робочих джерел даних." : completed ? "AI-бухгалтер самостійно перевірив 12 транзакцій, автоматично звірив 11 і передав одну невідповідність вам на рішення." : "AI-бухгалтер самостійно виконує фінансові завдання та передає вам лише рішення, які потребують людського контролю.";
 
   if (!employees.length)
     return (
@@ -595,6 +598,7 @@ function ExecutiveOverview() {
               <p>{createdEmployee ? "Підключіть банк і бухгалтерську систему, щоб AI міг самостійно знайти роботу." : "Підключіть CRM та Email, щоб AI-асистент міг працювати з клієнтськими задачами."}</p>
             </div>
           )}
+          {completed && <button className="text-button" onClick={() => router.push("/tasks/reconciliation")}>Переглянути результат <ArrowRight size={14} /></button>}
         </section>
         <aside className={`human-involvement ${pendingException || pendingCollaboration ? "is-pending" : ""}`}>
           <p className="eyebrow">ДЕ БУЛА ПОТРІБНА ВАША УЧАСТЬ</p>
@@ -630,7 +634,7 @@ function ExecutiveOverview() {
         <section className={`executive-attention ${totalPending > 0 || !hasRequiredSources ? "has-items" : ""}`}>
           <p className="eyebrow">ПОТРЕБУЄ УВАГИ</p>
           {pendingCollaboration ? (
-            <div><span>РІШЕННЯ ЛЮДИНИ</span><h3>Повідомлення клієнту · ТОВ «Орбіта»</h3><p>AI-асистент з продажів підготував follow-up і очікує погодження.</p><button className="text-button" onClick={() => router.push("/approvals/payment-follow-up")}>Переглянути <ArrowRight size={14} /></button></div>
+            <div><span>РІШЕННЯ ЛЮДИНИ</span><h3>Повідомлення клієнту щодо простроченої оплати</h3><p>ТОВ «Орбіта» · 48 000 ₴ · 12 днів прострочення</p><ul className="attention-checks"><li>Перевірив CRM</li><li>Переглянув історію комунікації</li><li>Підготував follow-up</li></ul><small className="attention-reason">Зовнішня комунікація потребує погодження людини.</small><button className="text-button" onClick={() => router.push("/approvals/payment-follow-up")}>Переглянути <ArrowRight size={14} /></button></div>
           ) : pendingException ? (
             <div>
               <span>РІШЕННЯ ЛЮДИНИ</span>
@@ -757,15 +761,25 @@ function CollaborationOverview() {
   if (!collaboration) return null;
   const salesStep = collaboration.status === "completed" ? "ЗАВЕРШЕНО" : collaboration.status === "approval" ? "ОЧІКУЄ РІШЕННЯ" : collaboration.status === "revision" ? "ДООПРАЦЬОВУЄ" : "ПРАЦЮЄ";
   const humanStep = collaboration.status === "completed" || collaboration.status === "resuming" ? "ПОГОДЖЕНО" : collaboration.status === "approval" ? "ОЧІКУЄ" : "НАСТУПНЕ";
-  return <section className="collaboration-overview" aria-labelledby="collaboration-overview-title"><header><div><p className="eyebrow">СПІЛЬНА РОБОТА</p><h2 id="collaboration-overview-title">Одна задача рухається між спеціалізованими AI-працівниками</h2></div><button className="text-button" onClick={() => router.push("/tasks/payment-follow-up")}>Відкрити завдання <ArrowRight size={14} /></button></header><div className="collaboration-chain"><article><Identity color="blue" /><div><span>AI-БУХГАЛТЕР · ЗАВЕРШЕНО</span><b>Виявив прострочену оплату</b></div></article><ArrowRight className="chain-direction" size={17} /><article><Identity color="green" /><div><span>AI-АСИСТЕНТ З ПРОДАЖІВ · {salesStep}</span><b>{collaboration.status === "completed" ? "Завершив демо follow-up" : "Перевіряє CRM та готує follow-up"}</b></div></article><ArrowRight className="chain-direction" size={17} /><article className="human-chain-step"><span>ЛЮДИНА · {humanStep}</span><b>Погоджує зовнішнє повідомлення</b></article></div><footer><b>Передач між AI: 1</b><span>Контекст передано, оскільки подальша дія потребує роботи з клієнтом, а не фінансової обробки.</span></footer></section>;
+  return <section className="collaboration-overview" aria-labelledby="collaboration-overview-title"><header><div><p className="eyebrow">СПІЛЬНА РОБОТА</p><h2 id="collaboration-overview-title">Одна задача рухається між спеціалізованими AI-працівниками</h2></div><button className="text-button" onClick={() => router.push("/tasks/payment-follow-up")}>Відкрити завдання <ArrowRight size={14} /></button></header><div className="collaboration-chain"><article><Identity color="blue" /><div><span>AI-БУХГАЛТЕР · ЗАВЕРШЕНО</span><b>Виявив прострочену оплату</b></div></article><ArrowRight className="chain-direction" size={17} /><article><Identity color="green" /><div><span>AI-АСИСТЕНТ З ПРОДАЖІВ · {salesStep}</span><b>{collaboration.status === "completed" ? "Завершив демо follow-up" : collaboration.status === "approval" ? "Підготував follow-up" : "Перевіряє CRM та готує follow-up"}</b></div></article><ArrowRight className="chain-direction" size={17} /><article className="human-chain-step"><span>ЛЮДИНА · {humanStep}</span><b>Погоджує зовнішнє повідомлення</b></article></div><footer><b>Передач між AI: 1</b><span>Контекст передано, оскільки подальша дія потребує роботи з клієнтом, а не фінансової обробки.</span></footer></section>;
 }
 
 function Dashboard() {
   const router = useRouter();
-  const { approved, employees, createdEmployee, integrations, reconciliation, collaboration } = useWorkforce();
+  const { approved, demoMode, employees, createdEmployee, integrations, reconciliation, collaboration } = useWorkforce();
   const salesEmployee = employees.find((item) => item.id === "sales-assistant");
   const accountantState =
-    reconciliation?.status === "completed"
+    demoMode === "working"
+      ? {
+          ...workers[0],
+          status: "У РОБОТІ",
+          objective: "Закриття серпня",
+          progress: 72,
+          action: "Перевіряє документи та фінансові записи",
+          href: "/tasks/monthly-close",
+          cta: "Переглянути",
+        }
+      : reconciliation?.status === "completed"
       ? {
           ...workers[0],
           status: "АКТИВНИЙ",
@@ -795,10 +809,14 @@ function Dashboard() {
               objective: "Готує закриття серпня",
               action: "Проаналізовано 48 транзакцій",
             };
-  const salesState = { key: "sales-assistant", name: "AI-асистент з продажів", role: "Продажі та клієнтська комунікація", color: "green", status: collaboration?.status === "approval" ? "ОЧІКУЄ ВАШОГО РІШЕННЯ" : collaboration?.status === "completed" ? "АКТИВНИЙ" : "ПРАЦЮЄ", objective: collaboration?.status === "completed" ? "Follow-up завершено" : collaboration ? "Готує follow-up для ТОВ «Орбіта»" : "Очікує робочий контекст", progress: collaboration?.status === "completed" ? 100 : collaboration ? 82 : 0, action: collaboration?.status === "completed" ? "Демо-відправлення зафіксовано" : collaboration ? "Перевірено CRM та історію контакту" : "Готовий приймати завдання від команди", tasks: 0 };
+  const salesState = { key: "sales-assistant", name: "AI-асистент з продажів", role: "Продажі та клієнтська комунікація", color: "green", status: collaboration?.status === "approval" ? "ОЧІКУЄ ПОГОДЖЕННЯ" : collaboration?.status === "completed" ? "АКТИВНИЙ" : "ПРАЦЮЄ", objective: collaboration?.status === "completed" ? "Follow-up завершено" : collaboration ? "Follow-up щодо простроченої оплати" : "Очікує робочий контекст", progress: collaboration?.status === "completed" ? 100 : collaboration ? 82 : 0, action: collaboration?.status === "completed" ? "Демо-відправлення зафіксовано" : collaboration ? "ТОВ «Орбіта» · 48 000 ₴ · 12 днів" : "Готовий приймати завдання від команди", tasks: 0, href: collaboration?.status === "approval" ? "/approvals/payment-follow-up" : "/tasks/payment-follow-up", cta: collaboration?.status === "approval" ? "Переглянути рішення" : "Переглянути" };
   const officeWorkers = [...(createdEmployee ? [accountantState] : []), ...(salesEmployee ? [salesState] : [])];
-  const activities = [
-    ...(approved
+  const workflowActivities = [
+    ...([...(collaboration?.activities || [])].reverse().map((event) => ({ time: event.time, actor: event.actor, text: `${event.text} · ${event.detail}`, kind: event.kind }))),
+    ...([...(reconciliation?.activities || [])].reverse().map((event) => ({ time: event.time, actor: event.kind === "HUMAN ACTION" ? "Користувач" : "AI-бухгалтер", text: `${event.text} · ${event.detail}`, kind: event.kind }))),
+  ];
+  const standardActivities = [
+    ...(approved && demoMode !== "working"
       ? [
           {
             time: "10:04",
@@ -838,13 +856,14 @@ function Dashboard() {
     })) || []),
     ...(collaboration?.activities.map((event) => ({ time: event.time, actor: event.actor, text: `${event.text} · ${event.detail}`, kind: event.kind })) || []),
   ];
+  const activities = demoMode === "working" ? workflowActivities : standardActivities;
   const activityKindLabels = {
     "AI ACTION": "ДІЯ AI",
     HANDOFF: "ПЕРЕДАЧА",
     "HUMAN ACTION": "ДІЯ ЛЮДИНИ",
     "DEMO CONNECTION": "ДЕМО-ПІДКЛЮЧЕННЯ",
   } as const;
-  const activeTasks = !employees.length ? 0 : (reconciliation && reconciliation.status !== "completed" ? 1 : 0) + (collaboration && collaboration.status !== "completed" ? 1 : 0);
+  const activeTasks = !employees.length ? 0 : (demoMode === "working" ? 1 : 0) + (reconciliation && reconciliation.status !== "completed" ? 1 : 0) + (collaboration && collaboration.status !== "completed" ? 1 : 0);
   const pendingDecisions = !employees.length ? 0 : (createdEmployee && !approved ? 1 : 0) + (reconciliation?.status === "exception" ? 1 : 0) + (collaboration?.status === "approval" ? 1 : 0);
   return (
     <Shell path="/office">
@@ -852,7 +871,7 @@ function Dashboard() {
         <header className="page-head office-head">
           <div>
             <OfficeGreeting />
-            <p>{employees.length ? "Ваша AI-команда працює." : "Ваш AI-офіс готовий до налаштування."}</p>
+            <p>{demoMode === "working" ? "AI-команда працює" : employees.length ? "Ваша AI-команда працює." : "Ваш AI-офіс готовий до налаштування."}</p>
           </div>
           <div className="summary">
             <span>
@@ -1715,9 +1734,11 @@ function ReconciliationApproval() {
 
 function Workforce() {
   const router = useRouter();
-  const { employees, integrations, reconciliation, collaboration } = useWorkforce();
+  const { demoMode, employees, integrations, reconciliation, collaboration } = useWorkforce();
 
   const employeeStatus = (employee: CreatedEmployee) => {
+    if (demoMode === "working" && employee.id === "accountant") return { tasks: 1, action: "Закриття серпня · 72%" };
+    if (demoMode === "working" && employee.id === "sales-assistant") return { tasks: 1, action: "Повідомлення очікує погодження" };
     if (employee.id === "sales-assistant" && collaboration) return collaboration.status === "completed" ? { tasks: 0, action: "Follow-up завершено" } : { tasks: 1, action: collaboration.status === "approval" ? "Повідомлення очікує погодження" : "Опрацьовує завдання від AI-бухгалтера" };
     if (employee.id === "accountant" && collaboration) return { tasks: reconciliation?.status === "completed" ? 0 : 1, action: "Передав follow-up AI-асистенту з продажів" };
     return { tasks: reconciliation && reconciliation.status !== "completed" ? 1 : 0, action: reconciliation?.status === "completed" ? "Завершив звірку транзакцій" : reconciliation ? "Виконує звірку транзакцій" : `Приєднався до команди о ${employee.createdAt}` };
@@ -2071,7 +2092,7 @@ function IntegrationsPanel({ employeeId }: { employeeId: EmployeeId }) {
 
 function Workspace({ employee = "accountant" }: { employee?: string }) {
   const router = useRouter();
-  const { employees, integrations, reconciliation, collaboration } = useWorkforce();
+  const { demoMode, employees, integrations, reconciliation, collaboration } = useWorkforce();
   const employeeId: EmployeeId = employee === "sales-assistant" ? "sales-assistant" : "accountant";
   const config = roleConfigs[employeeId];
   const hiredEmployee = employees.find((item) => item.id === employeeId) || null;
@@ -2086,7 +2107,8 @@ function Workspace({ employee = "accountant" }: { employee?: string }) {
   ] as const;
   const hasRequiredSources = employeeId === "accountant" ? employeeIntegrations.some((item) => item.id === "bank") && employeeIntegrations.some((item) => item.id === "accounting") : employeeIntegrations.some((item) => item.id === "crm") && employeeIntegrations.some((item) => item.id === "email");
   const readiness = employeeIntegrations.length === 0 ? "Потрібні підключення" : hasRequiredSources ? "Готовий до роботи" : "Частково готовий";
-  const currentWork = employeeId === "sales-assistant" && collaboration ? (collaboration.status === "completed" ? "Follow-up щодо простроченої оплати завершено" : "Follow-up для ТОВ «Орбіта»") : employeeId === "accountant" && collaboration ? "Передав прострочену оплату AI-асистенту з продажів" : autonomyLabels[hiredEmployee?.autonomy || "controlled"];
+  const currentWork = demoMode === "working" && employeeId === "accountant" ? "Закриття серпня · 72%" : employeeId === "sales-assistant" && collaboration ? (collaboration.status === "completed" ? "Follow-up щодо простроченої оплати завершено" : "Follow-up для ТОВ «Орбіта»") : employeeId === "accountant" && collaboration ? "Передав прострочену оплату AI-асистенту з продажів" : autonomyLabels[hiredEmployee?.autonomy || "controlled"];
+  const demoObjective = employeeId === "accountant" ? { title: "Закриття серпня", progress: 72, detail: "Перевіряє документи та фінансові записи" } : { title: collaboration?.status === "approval" ? "Follow-up очікує погодження" : "Робота з простроченими оплатами", progress: collaboration?.status === "completed" ? 100 : 82, detail: "ТОВ «Орбіта» · 48 000 ₴ · 12 днів" };
 
   const hiredDetails = (key: string) => {
     if (!hiredEmployee) return null;
@@ -2179,13 +2201,13 @@ function Workspace({ employee = "accountant" }: { employee?: string }) {
           <Status>{hiredEmployee ? "АКТИВНИЙ" : "ПРАЦЮЄ"}</Status>
           <div className="workspace-objective">
             <span>{hiredEmployee ? "СТАТУС" : "ПОТОЧНА ЦІЛЬ"}</span>
-            <h2>{hiredEmployee ? "Готовий до призначених завдань" : w.objective}</h2>
+            <h2>{demoMode === "working" ? demoObjective.title : hiredEmployee ? "Готовий до призначених завдань" : w.objective}</h2>
             <div className="progress">
-              <i style={{ width: hiredEmployee ? "100%" : `${w.progress}%` }} />
+              <i style={{ width: demoMode === "working" ? `${demoObjective.progress}%` : hiredEmployee ? "100%" : `${w.progress}%` }} />
             </div>
-            <b>{hiredEmployee ? "100%" : `${w.progress}%`}</b>
+            <b>{demoMode === "working" ? `${demoObjective.progress}%` : hiredEmployee ? "100%" : `${w.progress}%`}</b>
             <p>
-              <i /> {hiredEmployee ? `${autonomyLabels[hiredEmployee.autonomy]} рівень автономності` : "Зараз: очікує на перевірку документів."}
+              <i /> {demoMode === "working" ? demoObjective.detail : hiredEmployee ? `${autonomyLabels[hiredEmployee.autonomy]} рівень автономності` : "Зараз: очікує на перевірку документів."}
             </p>
           </div>
         </header>
