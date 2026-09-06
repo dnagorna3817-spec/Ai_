@@ -3,13 +3,13 @@ import "./globals.css";
 import { WorkforceProvider } from "@/components/workforce-state";
 
 export const metadata: Metadata = {
-  title: "AI Workforce",
-  description: "The AI team that works for your business.",
+  title: "AI-команда",
+  description: "AI-команда, яка працює для вашого бізнесу.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="uk">
       <body><WorkforceProvider>{children}</WorkforceProvider></body>
     </html>
   );
